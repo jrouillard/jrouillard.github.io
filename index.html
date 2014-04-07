@@ -1,0 +1,770 @@
+<!doctype html>
+<html>
+  <head>
+    <title>1minLCS</title>
+    <meta charset="utf-8">
+    <link  href="" rel="stylesheet"/>
+  </head>
+<body  style="background-color: black; background-image: url('img/background.png'); background-repeat: no-repeat">
+    
+<div id="container"></div>
+
+<script src="http://mrdoob.github.com/three.js/build/three.min.js"></script>
+<script src="js/cloth.js"></script>
+
+<script src="js/mirror.js"></script>
+<script src="js/watershader.js"></script>
+
+<script type="text/javascript">
+
+
+    var renderer, scene, camera, projector, mesh, objects = [], theta=0, phi=0, radius = 300, spriteList = [], foretList = [], materials = [], lightList = [], frameClock = new THREE.Clock();
+    var particleCount = 100
+    var particleSystem
+    var champ1
+
+    var mouseDown = false;
+    var lastMousePosition = {x:0, y:0}
+
+    var offset = {x: 0.5,y: 0.5, z: 0}
+    var particles
+    var mirrorMesh
+    var parameters = {
+        width: 1,
+        height: 1,
+        widthSegments: 250,
+        heightSegments: 250,
+        depth: 1500,
+        param: 4,
+        filterparam: 1
+    }
+    
+    var waterNormals;
+
+
+
+
+    pins = [ 0,1,2,3,4,5,6,7,8,9 ]; // classic 2 pins
+
+
+    var container, stats;
+
+    var clothGeometry;
+    var object, arrow;
+
+    ////////////////////////// classe Sprite
+    function Sprite(x, y, z, w, h, texture){
+        // objects.push( this.mesh );
+
+        var material = new THREE.SpriteMaterial( { map: THREE.ImageUtils.loadTexture( texture ), color: 0xffffff, fog: true } );
+        materials.push(material)
+        this.mesh = new THREE.Sprite( material );
+        this.mesh.scale.set( w, h, 1 );
+        this.mesh.position.set(x, y, z)
+
+    }
+
+
+    ////////////////////////// classe SpriteBatiment
+    function SpriteBatiment(x, y, z, w, h, texture, couleur){
+        this.light = new THREE.PointLight( couleur, 3, 15 );
+        this.light.position.set(x, y, z + 3)
+        // objects.push( this.mesh );
+
+        var material = new THREE.SpriteMaterial( { map: THREE.ImageUtils.loadTexture( texture ), color: 0xffffff, fog: true } );
+        materials.push(material)
+        this.mesh = new THREE.Sprite( material );
+        this.mesh.scale.set( w, h, 1 );
+        this.mesh.position.set(x, y, z)
+        //texture
+    }
+
+
+    Sprite.prototype.update = function() {
+    }
+
+    SpriteBatiment.prototype = new Sprite()
+
+    ////////////////////////// classe SpriteAnimated
+    function SpriteAnimated(x, y, z, w, h, texture, couleur){
+        var selfTexture = new THREE.ImageUtils.loadTexture(texture);
+        this.sprite1 = [new THREE.Vector2(0, 0), new THREE.Vector2(.333, 0), new THREE.Vector2(.333, 1), new THREE.Vector2(0, 1)];
+        this.sprite2 = [new THREE.Vector2(0.333, 0), new THREE.Vector2(.666, 0), new THREE.Vector2(.666, 1), new THREE.Vector2(0.333, 1)];
+        this.sprite3 = [new THREE.Vector2(0.666, 0), new THREE.Vector2(1, 0), new THREE.Vector2(1, 1), new THREE.Vector2(0.666, 1)];
+        this.frame = Math.random() * 20;
+        var material = new THREE.MeshLambertMaterial( { map: selfTexture,transparent: true,  overdraw: true, alphaTest: 0.5 } );
+        materials.push(material);
+        var geometry = new THREE.PlaneGeometry( w, h);
+        geometry.faceVertexUvs[0][0] = [ this.sprite3[0], this.sprite3[1], this.sprite3[3] ];
+        geometry.faceVertexUvs[0][1] = [ this.sprite3[1], this.sprite3[2], this.sprite3[3] ];
+        this.mesh = new THREE.Mesh(geometry, material);
+        this.light = new THREE.PointLight( couleur, 5, 19 );
+        this.light.position.set(x, y, z - 3);
+        this.mesh.position.set(x, y, z);
+        this.mesh.rotation.x = Math.PI/2;
+        this.mesh.rotation.y = Math.PI/2;
+    }
+    //heritage
+    SpriteAnimated.prototype = new Sprite()
+    SpriteAnimated.prototype.update = function(theta) {
+        this.mesh.rotation.y = theta + Math.PI/2;
+        var oldframe = this.frame;
+
+        var tabFrame = [this.sprite1,this.sprite1, this.sprite2, this.sprite3,this.sprite3, this.sprite2];
+        this.frame += 1;
+        if (this.frame > 50)  this.frame = 0;
+        if (tabFrame[Math.round(oldframe/10)] != tabFrame[Math.round(this.frame/10)]) {
+            this.mesh.geometry.faceVertexUvs[0][0] = [ tabFrame[Math.round(this.frame/10)][0],  tabFrame[Math.round(this.frame/10)][1],  tabFrame[Math.round(this.frame/10)][3] ];
+            this.mesh.geometry.faceVertexUvs[0][1] = [ tabFrame[Math.round(this.frame/10)][1],  tabFrame[Math.round(this.frame/10)][2],  tabFrame[Math.round(this.frame/10)][3] ];
+            this.mesh.geometry.uvsNeedUpdate= true;
+        }
+    }
+
+    ////////////////////////// classe SpriteAnimated
+    function SpriteHero(x, y, z, w, h, texture, couleur, buff){
+        //sprite
+        var material = new THREE.SpriteMaterial( { map: THREE.ImageUtils.loadTexture( texture ), color: 0xffffff, fog: true } );
+        materials.push(material);
+        this.mesh = new THREE.Sprite( material );
+        this.mesh.scale.set( w, h, 1 );
+        this.mesh.position.set(x, y, z);
+
+
+        //cross
+
+        var cross = new THREE.PlaneGeometry( 6, 6 );
+        var crossTexture = new THREE.MeshLambertMaterial( { map: THREE.ImageUtils.loadTexture('img/cross.png' ),transparent: true, opacity : 0.8} );
+        this.meshCross = new THREE.Mesh( cross, crossTexture );
+        this.meshCross.position.set(x, y, 1)
+        scene.add(this.meshCross)
+
+        //lumiere
+        this.light = new THREE.PointLight( couleur, 5, 19 );
+        this.light.position.set(x, y, z - 3);
+        this.mesh.position.set(x, y, z);
+        this.mesh.rotation.x = Math.PI/2;
+        this.mesh.rotation.y = Math.PI/2;
+
+
+        //buff []
+        this.buff = []
+        for (var i = 0; i < buff.length; i++) {
+            var particles = new THREE.Geometry()
+            var pMaterial = new THREE.ParticleBasicMaterial({
+                color: 0xFFFFFF,
+                size: 2,
+                map: THREE.ImageUtils.loadTexture(buff[i]),
+                blending: THREE.AdditiveBlending,
+                transparent: true
+            });
+
+            for (var p = 0; p < 3; p++) {
+                var pX = Math.random() * 500 - 250,
+                    pY = Math.random() * 500 - 250,
+                    pZ = Math.random() * 500 - 250
+                var particle = new THREE.Vector3(pX, pY, pZ);
+                    particle.velocity = new THREE.Vector3(pX/2, pY/2, pZ/2);
+                // add it to the geometry
+                particles.vertices.push(particle);
+            }
+            // create the particle system
+            this.buff.push(new THREE.ParticleSystem(
+                particles,
+                pMaterial
+            ));
+        }
+
+
+    }
+    //heritage
+    SpriteHero.prototype = new Sprite()
+    SpriteHero.prototype.move = function(offset) {
+        this.mesh.position.x += offset.x;
+        this.mesh.position.y += offset.y;
+        this.mesh.position.z += offset.z;
+
+        this.meshCross.position.x += offset.x;
+        this.meshCross.position.y += offset.y;
+        this.meshCross.position.z = getHeight( this.meshCross.position.x, this.meshCross.position.y) - 4.5;
+    }
+
+
+
+    init();
+    animate();
+
+    function init(){
+        var arrayMap =[{"x":-100,"y":100,"z":1},{"x":-90,"y":100,"z":2.5},{"x":-80,"y":100,"z":2.5},{"x":-70,"y":100,"z":1.5},{"x":-60,"y":100,"z":1},{"x":-50,"y":100,"z":1.5},{"x":-40,"y":100,"z":1.5},{"x":-30,"y":100,"z":2.5},{"x":-20,"y":100,"z":3},{"x":-10,"y":100,"z":2.5},{"x":0,"y":100,"z":2.5},{"x":10,"y":100,"z":2.5},{"x":20,"y":100,"z":2},{"x":30,"y":100,"z":1.5},{"x":40,"y":100,"z":2.5},{"x":50,"y":100,"z":2.5},{"x":60,"y":100,"z":1.5},{"x":70,"y":100,"z":0.5},{"x":80,"y":100,"z":0},{"x":90,"y":100,"z":0},{"x":100,"y":100,"z":0},{"x":-100,"y":90,"z":2},{"x":-90,"y":90,"z":5},{"x":-80,"y":90,"z":5.5},{"x":-70,"y":90,"z":4},{"x":-60,"y":90,"z":2},{"x":-50,"y":90,"z":1.5},{"x":-40,"y":90,"z":1.5},{"x":-30,"y":90,"z":2.5},{"x":-20,"y":90,"z":3},{"x":-10,"y":90,"z":2.5},{"x":0,"y":90,"z":2.5},{"x":10,"y":90,"z":1},{"x":20,"y":90,"z":0.5},{"x":30,"y":90,"z":2},{"x":40,"y":90,"z":2},{"x":50,"y":90,"z":2},{"x":60,"y":90,"z":2},{"x":70,"y":90,"z":2},{"x":80,"y":90,"z":2},{"x":90,"y":90,"z":0},{"x":100,"y":90,"z":0},{"x":-100,"y":80,"z":1.5},{"x":-90,"y":80,"z":4.5},{"x":-80,"y":80,"z":4.5},{"x":-70,"y":80,"z":2},{"x":-60,"y":80,"z":0.5},{"x":-50,"y":80,"z":-1},{"x":-40,"y":80,"z":-1},{"x":-30,"y":80,"z":-1},{"x":-20,"y":80,"z":-1.5},{"x":-10,"y":80,"z":-1},{"x":0,"y":80,"z":-1},{"x":10,"y":80,"z":-2.5},{"x":20,"y":80,"z":-2.5},{"x":30,"y":80,"z":2},{"x":40,"y":80,"z":2},{"x":50,"y":80,"z":2},{"x":60,"y":80,"z":2},{"x":70,"y":80,"z":2},{"x":80,"y":80,"z":2},{"x":90,"y":80,"z":3},{"x":100,"y":80,"z":1.5},{"x":-100,"y":70,"z":2.5},{"x":-90,"y":70,"z":4.5},{"x":-80,"y":70,"z":1},{"x":-70,"y":70,"z":-2.5},{"x":-60,"y":70,"z":-1.5},{"x":-50,"y":70,"z":-1},{"x":-40,"y":70,"z":-1},{"x":-30,"y":70,"z":-1.5},{"x":-20,"y":70,"z":-2.5},{"x":-10,"y":70,"z":-2},{"x":0,"y":70,"z":-1.5},{"x":10,"y":70,"z":-2},{"x":20,"y":70,"z":-2.5},{"x":30,"y":70,"z":2},{"x":40,"y":70,"z":2},{"x":50,"y":70,"z":2},{"x":60,"y":70,"z":2},{"x":70,"y":70,"z":2},{"x":80,"y":70,"z":2},{"x":90,"y":70,"z":6},{"x":100,"y":70,"z":2},{"x":-100,"y":60,"z":3},{"x":-90,"y":60,"z":4},{"x":-80,"y":60,"z":-1.5},{"x":-70,"y":60,"z":-4},{"x":-60,"y":60,"z":-3},{"x":-50,"y":60,"z":-1.5},{"x":-40,"y":60,"z":-0.5},{"x":-30,"y":60,"z":-1},{"x":-20,"y":60,"z":-1},{"x":-10,"y":60,"z":-2.5},{"x":0,"y":60,"z":-2},{"x":10,"y":60,"z":-1.5},{"x":20,"y":60,"z":-3},{"x":30,"y":60,"z":2},{"x":40,"y":60,"z":2},{"x":50,"y":60,"z":2},{"x":60,"y":60,"z":2},{"x":70,"y":60,"z":2},{"x":80,"y":60,"z":2},{"x":90,"y":60,"z":5.5},{"x":100,"y":60,"z":1},{"x":-100,"y":50,"z":3.5},{"x":-90,"y":50,"z":3},{"x":-80,"y":50,"z":-3},{"x":-70,"y":50,"z":-3},{"x":-60,"y":50,"z":-4},{"x":-50,"y":50,"z":-7},{"x":-40,"y":50,"z":-5},{"x":-30,"y":50,"z":-1.5},{"x":-20,"y":50,"z":0},{"x":-10,"y":50,"z":-1.5},{"x":0,"y":50,"z":-1.5},{"x":10,"y":50,"z":-1},{"x":20,"y":50,"z":-4.5},{"x":30,"y":50,"z":0},{"x":40,"y":50,"z":1.5},{"x":50,"y":50,"z":2},{"x":60,"y":50,"z":2},{"x":70,"y":50,"z":2},{"x":80,"y":50,"z":2},{"x":90,"y":50,"z":5.5},{"x":100,"y":50,"z":1},{"x":-100,"y":40,"z":3.5},{"x":-90,"y":40,"z":2},{"x":-80,"y":40,"z":-3.5},{"x":-70,"y":40,"z":-2},{"x":-60,"y":40,"z":-2},{"x":-50,"y":40,"z":-9},{"x":-40,"y":40,"z":-12.5},{"x":-30,"y":40,"z":-6.5},{"x":-20,"y":40,"z":-1},{"x":-10,"y":40,"z":0},{"x":0,"y":40,"z":0},{"x":10,"y":40,"z":-0.5},{"x":20,"y":40,"z":-4},{"x":30,"y":40,"z":-1},{"x":40,"y":40,"z":1},{"x":50,"y":40,"z":2},{"x":60,"y":40,"z":2},{"x":70,"y":40,"z":2},{"x":80,"y":40,"z":2},{"x":90,"y":40,"z":6},{"x":100,"y":40,"z":0.5},{"x":-100,"y":30,"z":2},{"x":-90,"y":30,"z":0},{"x":-80,"y":30,"z":-3},{"x":-70,"y":30,"z":-2},{"x":-60,"y":30,"z":-0.5},{"x":-50,"y":30,"z":-4.5},{"x":-40,"y":30,"z":-11},{"x":-30,"y":30,"z":-10},{"x":-20,"y":30,"z":-4},{"x":-10,"y":30,"z":-0.5},{"x":0,"y":30,"z":1.5},{"x":10,"y":30,"z":1},{"x":20,"y":30,"z":-2},{"x":30,"y":30,"z":-5.5},{"x":40,"y":30,"z":-6},{"x":50,"y":30,"z":-3.5},{"x":60,"y":30,"z":-2.5},{"x":70,"y":30,"z":-3.5},{"x":80,"y":30,"z":3.5},{"x":90,"y":30,"z":6},{"x":100,"y":30,"z":0},{"x":-100,"y":20,"z":3},{"x":-90,"y":20,"z":-2},{"x":-80,"y":20,"z":-4},{"x":-70,"y":20,"z":-1.5},{"x":-60,"y":20,"z":-1},{"x":-50,"y":20,"z":-1},{"x":-40,"y":20,"z":-3},{"x":-30,"y":20,"z":-9},{"x":-20,"y":20,"z":-8.5},{"x":-10,"y":20,"z":-1.5},{"x":0,"y":20,"z":0},{"x":10,"y":20,"z":-1.5},{"x":20,"y":20,"z":-2},{"x":30,"y":20,"z":-1},{"x":40,"y":20,"z":-2.5},{"x":50,"y":20,"z":-3.5},{"x":60,"y":20,"z":-3},{"x":70,"y":20,"z":-5},{"x":80,"y":20,"z":1},{"x":90,"y":20,"z":4.5},{"x":100,"y":20,"z":0},{"x":-100,"y":10,"z":3},{"x":-90,"y":10,"z":-2.5},{"x":-80,"y":10,"z":-5},{"x":-70,"y":10,"z":-3},{"x":-60,"y":10,"z":-2},{"x":-50,"y":10,"z":-0.5},{"x":-40,"y":10,"z":-1},{"x":-30,"y":10,"z":-5.5},{"x":-20,"y":10,"z":-6},{"x":-10,"y":10,"z":-1},{"x":0,"y":10,"z":-1.5},{"x":10,"y":10,"z":-2.5},{"x":20,"y":10,"z":-1},{"x":30,"y":10,"z":1},{"x":40,"y":10,"z":1},{"x":50,"y":10,"z":0},{"x":60,"y":10,"z":-0.5},{"x":70,"y":10,"z":-3.5},{"x":80,"y":10,"z":0.5},{"x":90,"y":10,"z":4},{"x":100,"y":10,"z":0.5},{"x":-100,"y":0,"z":2.5},{"x":-90,"y":0,"z":-1.5},{"x":-80,"y":0,"z":-5},{"x":-70,"y":0,"z":-3.5},{"x":-60,"y":0,"z":-3},{"x":-50,"y":0,"z":-3.5},{"x":-40,"y":0,"z":-2.5},{"x":-30,"y":0,"z":-1},{"x":-20,"y":0,"z":-1},{"x":-10,"y":0,"z":-1},{"x":0,"y":0,"z":-0.5},{"x":10,"y":0,"z":0},{"x":20,"y":0,"z":0},{"x":30,"y":0,"z":0.5},{"x":40,"y":0,"z":0.5},{"x":50,"y":0,"z":1},{"x":60,"y":0,"z":1},{"x":70,"y":0,"z":-3.5},{"x":80,"y":0,"z":0.5},{"x":90,"y":0,"z":4.5},{"x":100,"y":0,"z":0.5},{"x":-100,"y":-10,"z":2},{"x":-90,"y":-10,"z":-2},{"x":-80,"y":-10,"z":-6.5},{"x":-70,"y":-10,"z":-2.5},{"x":-60,"y":-10,"z":-1},{"x":-50,"y":-10,"z":-3.5},{"x":-40,"y":-10,"z":-2.5},{"x":-30,"y":-10,"z":-2},{"x":-20,"y":-10,"z":-2.5},{"x":-10,"y":-10,"z":-1.5},{"x":0,"y":-10,"z":-2.5},{"x":10,"y":-10,"z":-4.5},{"x":20,"y":-10,"z":-2.5},{"x":30,"y":-10,"z":-1},{"x":40,"y":-10,"z":-1.5},{"x":50,"y":-10,"z":-0.5},{"x":60,"y":-10,"z":0},{"x":70,"y":-10,"z":-3.5},{"x":80,"y":-10,"z":0},{"x":90,"y":-10,"z":4},{"x":100,"y":-10,"z":0.5},{"x":-100,"y":-20,"z":1.5},{"x":-90,"y":-20,"z":-1},{"x":-80,"y":-20,"z":-6},{"x":-70,"y":-20,"z":-8},{"x":-60,"y":-20,"z":-5},{"x":-50,"y":-20,"z":-1},{"x":-40,"y":-20,"z":-1},{"x":-30,"y":-20,"z":-3},{"x":-20,"y":-20,"z":-2.5},{"x":-10,"y":-20,"z":-0.5},{"x":0,"y":-20,"z":-2.5},{"x":10,"y":-20,"z":-9},{"x":20,"y":-20,"z":-10},{"x":30,"y":-20,"z":-5.5},{"x":40,"y":-20,"z":-3.5},{"x":50,"y":-20,"z":-3},{"x":60,"y":-20,"z":-3.5},{"x":70,"y":-20,"z":-4.5},{"x":80,"y":-20,"z":2},{"x":90,"y":-20,"z":5},{"x":100,"y":-20,"z":0.5},{"x":-100,"y":-30,"z":2},{"x":-90,"y":-30,"z":2},{"x":-80,"y":-30,"z":1.5},{"x":-70,"y":-30,"z":-1.5},{"x":-60,"y":-30,"z":-1.5},{"x":-50,"y":-30,"z":-4},{"x":-40,"y":-30,"z":-3.5},{"x":-30,"y":-30,"z":-2.5},{"x":-20,"y":-30,"z":-2},{"x":-10,"y":-30,"z":-3},{"x":0,"y":-30,"z":-2.5},{"x":10,"y":-30,"z":-5},{"x":20,"y":-30,"z":-9},{"x":30,"y":-30,"z":-10.5},{"x":40,"y":-30,"z":-7},{"x":50,"y":-30,"z":-2},{"x":60,"y":-30,"z":-3},{"x":70,"y":-30,"z":-5.5},{"x":80,"y":-30,"z":3.5},{"x":90,"y":-30,"z":6.5},{"x":100,"y":-30,"z":0},{"x":-100,"y":-40,"z":2.5},{"x":-90,"y":-40,"z":2},{"x":-80,"y":-40,"z":2},{"x":-70,"y":-40,"z":2},{"x":-60,"y":-40,"z":2},{"x":-50,"y":-40,"z":1},{"x":-40,"y":-40,"z":0},{"x":-30,"y":-40,"z":-3},{"x":-20,"y":-40,"z":-2},{"x":-10,"y":-40,"z":-4},{"x":0,"y":-40,"z":-3},{"x":10,"y":-40,"z":-2},{"x":20,"y":-40,"z":-4.5},{"x":30,"y":-40,"z":-8.5},{"x":40,"y":-40,"z":-9},{"x":50,"y":-40,"z":-3.5},{"x":60,"y":-40,"z":-1},{"x":70,"y":-40,"z":-3.5},{"x":80,"y":-40,"z":2},{"x":90,"y":-40,"z":4.5},{"x":100,"y":-40,"z":0},{"x":-100,"y":-50,"z":3},{"x":-90,"y":-50,"z":2},{"x":-80,"y":-50,"z":2},{"x":-70,"y":-50,"z":2},{"x":-60,"y":-50,"z":2},{"x":-50,"y":-50,"z":1.5},{"x":-40,"y":-50,"z":1},{"x":-30,"y":-50,"z":-3},{"x":-20,"y":-50,"z":-2},{"x":-10,"y":-50,"z":-3.5},{"x":0,"y":-50,"z":-2.5},{"x":10,"y":-50,"z":-3},{"x":20,"y":-50,"z":-3.5},{"x":30,"y":-50,"z":-3.5},{"x":40,"y":-50,"z":-6},{"x":50,"y":-50,"z":-4.5},{"x":60,"y":-50,"z":-3},{"x":70,"y":-50,"z":-3},{"x":80,"y":-50,"z":2.5},{"x":90,"y":-50,"z":3},{"x":100,"y":-50,"z":0},{"x":-100,"y":-60,"z":2},{"x":-90,"y":-60,"z":2},{"x":-80,"y":-60,"z":2},{"x":-70,"y":-60,"z":2},{"x":-60,"y":-60,"z":2},{"x":-50,"y":-60,"z":2},{"x":-40,"y":-60,"z":2},{"x":-30,"y":-60,"z":-2},{"x":-20,"y":-60,"z":-2},{"x":-10,"y":-60,"z":-3},{"x":0,"y":-60,"z":-2.5},{"x":10,"y":-60,"z":-2.5},{"x":20,"y":-60,"z":-0.5},{"x":30,"y":-60,"z":-0.5},{"x":40,"y":-60,"z":-2.5},{"x":50,"y":-60,"z":-5.5},{"x":60,"y":-60,"z":-5.5},{"x":70,"y":-60,"z":-1.5},{"x":80,"y":-60,"z":3.5},{"x":90,"y":-60,"z":4.5},{"x":100,"y":-60,"z":1.5},{"x":-100,"y":-70,"z":2},{"x":-90,"y":-70,"z":2},{"x":-80,"y":-70,"z":2},{"x":-70,"y":-70,"z":2},{"x":-60,"y":-70,"z":2},{"x":-50,"y":-70,"z":2},{"x":-40,"y":-70,"z":1.5},{"x":-30,"y":-70,"z":-3.5},{"x":-20,"y":-70,"z":-2.5},{"x":-10,"y":-70,"z":-1.5},{"x":0,"y":-70,"z":-2},{"x":10,"y":-70,"z":-3},{"x":20,"y":-70,"z":-1.5},{"x":30,"y":-70,"z":-2},{"x":40,"y":-70,"z":-4},{"x":50,"y":-70,"z":-6},{"x":60,"y":-70,"z":-3.5},{"x":70,"y":-70,"z":0},{"x":80,"y":-70,"z":3.5},{"x":90,"y":-70,"z":7},{"x":100,"y":-70,"z":3.5},{"x":-100,"y":-80,"z":2},{"x":-90,"y":-80,"z":2},{"x":-80,"y":-80,"z":2},{"x":-70,"y":-80,"z":2},{"x":-60,"y":-80,"z":2},{"x":-50,"y":-80,"z":2},{"x":-40,"y":-80,"z":1.5},{"x":-30,"y":-80,"z":-4},{"x":-20,"y":-80,"z":-4},{"x":-10,"y":-80,"z":-3},{"x":0,"y":-80,"z":-2},{"x":10,"y":-80,"z":-2.5},{"x":20,"y":-80,"z":-2.5},{"x":30,"y":-80,"z":-3.5},{"x":40,"y":-80,"z":-4},{"x":50,"y":-80,"z":-2},{"x":60,"y":-80,"z":2},{"x":70,"y":-80,"z":3},{"x":80,"y":-80,"z":4.5},{"x":90,"y":-80,"z":8},{"x":100,"y":-80,"z":4},{"x":-100,"y":-90,"z":2},{"x":-90,"y":-90,"z":2},{"x":-80,"y":-90,"z":2},{"x":-70,"y":-90,"z":2},{"x":-60,"y":-90,"z":2},{"x":-50,"y":-90,"z":2},{"x":-40,"y":-90,"z":2},{"x":-30,"y":-90,"z":1},{"x":-20,"y":-90,"z":2.5},{"x":-10,"y":-90,"z":3},{"x":0,"y":-90,"z":2.5},{"x":10,"y":-90,"z":2},{"x":20,"y":-90,"z":2},{"x":30,"y":-90,"z":1},{"x":40,"y":-90,"z":2},{"x":50,"y":-90,"z":4},{"x":60,"y":-90,"z":5.5},{"x":70,"y":-90,"z":7},{"x":80,"y":-90,"z":7.5},{"x":90,"y":-90,"z":10},{"x":100,"y":-90,"z":6},{"x":-100,"y":-100,"z":0.5},{"x":-90,"y":-100,"z":0},{"x":-80,"y":-100,"z":2},{"x":-70,"y":-100,"z":2},{"x":-60,"y":-100,"z":5},{"x":-50,"y":-100,"z":3},{"x":-40,"y":-100,"z":1},{"x":-30,"y":-100,"z":3},{"x":-20,"y":-100,"z":6},{"x":-10,"y":-100,"z":5.5},{"x":0,"y":-100,"z":4.5},{"x":10,"y":-100,"z":4},{"x":20,"y":-100,"z":3.5},{"x":30,"y":-100,"z":2.5},{"x":40,"y":-100,"z":3},{"x":50,"y":-100,"z":4.5},{"x":60,"y":-100,"z":4},{"x":70,"y":-100,"z":4},{"x":80,"y":-100,"z":5.5},{"x":90,"y":-100,"z":7},{"x":100,"y":-100,"z":4}] ;
+
+        var forest = [{"x":50,"y":-40},{"x":53,"y":-45},{"x":58,"y":-50},{"x":59,"y":-41},{"x":59,"y":-43},{"x":60,"y":-35},{"x":45,"y":-17},{"x":51,"y":-19},{"x":52,"y":-24},{"x":63,"y":-22},{"x":62,"y":-16},{"x":60,"y":-11},{"x":56,"y":-8},{"x":37,"y":-20},{"x":35,"y":-16},{"x":35,"y":-5},{"x":42,"y":-4},{"x":47,"y":-6},{"x":61,"y":5},{"x":62,"y":13},{"x":60,"y":17},{"x":58,"y":18},{"x":49,"y":9},{"x":48,"y":15},{"x":46,"y":18},{"x":39,"y":25},{"x":42,"y":21},{"x":32,"y":21},{"x":36,"y":22},{"x":28,"y":12},{"x":20,"y":5},{"x":24,"y":1},{"x":30,"y":0},{"x":24,"y":10},{"x":37,"y":7},{"x":37,"y":6},{"x":44,"y":-67},{"x":43,"y":-59},{"x":27,"y":-69},{"x":29,"y":-72},{"x":32,"y":-71},{"x":66,"y":-77},{"x":69,"y":-81},{"x":72,"y":-67},{"x":15,"y":-55},{"x":21,"y":-56},{"x":26,"y":-58},{"x":36,"y":-46},{"x":34,"y":-48},{"x":26,"y":-48},{"x":19,"y":-43},{"x":20,"y":-37},{"x":22,"y":-31},{"x":12,"y":-70},{"x":18,"y":-70},{"x":3,"y":-71},{"x":-9,"y":-69},{"x":-2,"y":-69},{"x":-5,"y":-65},{"x":5,"y":-57},{"x":6,"y":-59},{"x":11,"y":-44},{"x":10,"y":-37},{"x":2,"y":-35},{"x":-1,"y":-38},{"x":3,"y":-26},{"x":1,"y":-21},{"x":-7,"y":-18},{"x":-11,"y":-23},{"x":-12,"y":-25},{"x":-10,"y":-35},{"x":-12,"y":-40},{"x":-11,"y":-44},{"x":-8,"y":-48},{"x":-5,"y":-50},{"x":-20,"y":-69},{"x":-19,"y":-62},{"x":-19,"y":-59},{"x":-15,"y":-57},{"x":-18,"y":-51},{"x":-23,"y":-43},{"x":-25,"y":-37},{"x":-22,"y":-33},{"x":-35,"y":-20},{"x":-41,"y":-23},{"x":-47,"y":-20},{"x":-50,"y":-17},{"x":-52,"y":-10},{"x":-52,"y":-1},{"x":-38,"y":-11},{"x":-34,"y":-8},{"x":-35,"y":-2},{"x":-41,"y":-4},{"x":-30,"y":-5},{"x":-22,"y":-4},{"x":-24,"y":1},{"x":-27,"y":3},{"x":-25,"y":-10},{"x":-2,"y":29},{"x":1,"y":24},{"x":5,"y":21},{"x":11,"y":25},{"x":12,"y":31},{"x":9,"y":39},{"x":11,"y":44},{"x":9,"y":50},{"x":6,"y":56},{"x":17,"y":38},{"x":21,"y":40},{"x":23,"y":43},{"x":19,"y":55},{"x":21,"y":59},{"x":18,"y":64},{"x":19,"y":68},{"x":19,"y":75},{"x":7,"y":69},{"x":7,"y":71},{"x":5,"y":73},{"x":-1,"y":74},{"x":-15,"y":72},{"x":-19,"y":71},{"x":-32,"y":70},{"x":-29,"y":71},{"x":-34,"y":73},{"x":-46,"y":69},{"x":-63,"y":40},{"x":-63,"y":44},{"x":-63,"y":52},{"x":-63,"y":54},{"x":-55,"y":56},{"x":-62,"y":51},{"x":-53,"y":18},{"x":-55,"y":23},{"x":-41,"y":17},{"x":-38,"y":11},{"x":-39,"y":7},{"x":-43,"y":4},{"x":-49,"y":6},{"x":-51,"y":8},{"x":1,"y":40},{"x":-4,"y":40},{"x":-12,"y":39},{"x":-14,"y":40},{"x":-14,"y":43},{"x":-13,"y":47},{"x":-10,"y":52},{"x":-17,"y":56},{"x":-20,"y":58},{"x":-24,"y":62},{"x":-33,"y":61},{"x":-47,"y":66},{"x":-46,"y":63},{"x":-9,"y":65},{"x":-7,"y":61},{"x":24,"y":16},{"x":39,"y":32},{"x":-67,"y":26},{"x":-67,"y":18}, {"x":84,"y":43},{"x":83,"y":14},{"x":83,"y":-13},{"x":82,"y":-50},{"x":84,"y":-40},{"x":82,"y":-74},{"x":69,"y":-77},{"x":76,"y":-67},{"x":80,"y":-83},{"x":53,"y":-87},{"x":49,"y":-83},{"x":17,"y":-88},{"x":-15,"y":-88},{"x":-3,"y":-89},{"x":21,"y":-89},{"x":40,"y":24},{"x":-2,"y":92},{"x":-23,"y":93},{"x":-62,"y":89},{"x":-78,"y":83},{"x":-80,"y":89},{"x":-86,"y":75},{"x":-77,"y":80},{"x":-89,"y":58},{"x":-89,"y":46},{"x":-89,"y":29},{"x":-89,"y":0},{"x":-89,"y":-25},{"x":-91,"y":5},{"x":-89,"y":-52},{"x":-90,"y":-18},{"x":-91,"y":77},{"x":-68,"y":-10},{"x":-66,"y":-4},{"x":-62,"y":-15},{"x":-63,"y":-3},{"x":66,"y":-82}]
+
+        var neutralLights = [{"x":49.95580760154377,"y":-57.22164219000579,"z":5},{"x":61.12127140319896,"y":-45.5714022841147,"z":5},{"x":36.362193350429976,"y":-43.955501857548214,"z":5},{"x":31.16168096711729,"y":-29.998808346007095,"z":5},{"x":24.633818751146066,"y":-3.8487931847963637,"z":5},{"x":-2.0404479088254845,"y":-8.551997813019852,"z":5},{"x":-11.729911101883204,"y":6.504144533139652,"z":5},{"x":0.7259387061986047,"y":14.838299219906816,"z":5},{"x":12.779839781024549,"y":3.2967225527459902,"z":5},{"x":-29.078674858200685,"y":13.781937261639172,"z":5},{"x":-8.536909763628955,"y":30.062264133734942,"z":5},{"x":-42.6523924555558,"y":26.643925845457602,"z":5},{"x":-39.18800723479575,"y":52.8364018747414,"z":5},{"x":-48.96146539599215,"y":34.683952684950896,"z":5},{"x":57.96197500446183,"y":67.75562024384533,"z":5},{"x":60.16906382823661,"y":66.44676884234161,"z":5},{"x":62.458651876182394,"y":65.54032898548027,"z":5},{"x":-62.12608461296816,"y":-55.51512292609971,"z":5},{"x":-60.27219795387463,"y":-57.16058919402303,"z":5},{"x":-62.809280635697384,"y":-54.38336884586829,"z":5}]
+
+        var redTowerInit =
+        [
+        {
+            x:17,
+            y:17,
+            texture: 'img/redtower.png'
+        },
+        {
+            x:28,
+            y:38,
+            texture: 'img/redtower.png'
+        },
+        {
+            x:38,
+            y:80,
+            texture: 'img/redtower.png'
+        },
+        {
+            x:5,
+            y:80,
+            texture: 'img/redtower.png'
+        },
+        {
+            x:42,
+            y:50,
+            texture: 'img/redtower.png'
+        },
+        {
+            x:72,
+            y:45,
+            texture: 'img/redtower.png'
+        },
+        {
+            x:-40,
+            y:80,
+            texture: 'img/redtower.png'
+        },
+        {
+            x:70,
+            y:10,
+            texture: 'img/redtower.png'
+        },
+        {
+            x:75,
+            y:-37,
+            texture: 'img/redtower.png'
+        },
+        {
+            x:-40,
+            y:80,
+            texture: 'img/redtower.png'
+        },
+        {"x":67,"y":66, texture: 'img/redtower.png'},
+        {"x":62,"y":72, texture: 'img/redtower.png'}
+        ];
+        var blueTowerInit =
+        [
+
+        {
+            x:-17,
+            y:-10,
+            texture: 'img/blueTower.png'
+        },
+        {
+            x:-28,
+            y:-30,
+            texture: 'img/blueTower.png'
+        },
+        {
+            x:-38,
+            y:-80,
+            texture: 'img/blueTower.png'
+        },
+        {
+            x:-5,
+            y:-80,
+            texture: 'img/blueTower.png'
+        },
+        {
+            x:-42,
+            y:-50,
+            texture: 'img/blueTower.png'
+        },
+        {
+            x:-72,
+            y:-45,
+            texture: 'img/blueTower.png'
+        },
+        {
+            x:40,
+            y:-80,
+            texture: 'img/blueTower.png'
+        },
+        {
+            x:-70,
+            y:-10,
+            texture: 'img/blueTower.png'
+        },
+        {
+            x:-75,
+            y:37,
+            texture: 'img/blueTower.png'
+        },
+        {
+            x:40,
+            y:-80,
+            texture: 'img/blueTower.png'
+        },{
+            "x":-55,
+            "y":-69,
+            texture: 'img/blueTower.png'
+        },
+        {
+            "x":-61,
+            "y":-62,
+            texture: 'img/blueTower.png'
+        }
+        ];
+
+
+        map = new THREE.PlaneGeometry( 200, 200, 20, 20 );
+        map.vertices = arrayMap
+        var heightHere = 0
+        for (var i = 0; i < redTowerInit.length; ++i) {
+
+            heightHere =  getHeight(redTowerInit[i].x, redTowerInit[i].y)
+            spriteList.push(new SpriteBatiment(redTowerInit[i].x, redTowerInit[i].y, heightHere + 0, 6, 10, redTowerInit[i].texture, 0xff0088))
+        }
+        for (var i = 0; i < blueTowerInit.length; ++i) {
+            heightHere =  getHeight(blueTowerInit[i].x, blueTowerInit[i].y)
+            spriteList.push(new SpriteBatiment(blueTowerInit[i].x, blueTowerInit[i].y, heightHere + 0, 6, 10, 'img/blueTower.png', 0x0088ff))
+        }
+
+
+
+
+        spriteList.push(new Sprite(-65, -70, getHeight(-65, -70)-2, 9, 8, 'img/blueNexus.png'))
+        spriteList.push(new Sprite(69, 73, getHeight(69, 73)-2, 9, 8, 'img/redNexus.png'))
+
+
+        spriteList.push(new Sprite(69, 73, getHeight(69, 73)-2, 9, 8, 'img/redNexus.png'))
+
+
+        // on initialise le moteur de rendu
+        renderer = new THREE.WebGLRenderer( { alpha: true,  antialias: true  });
+        renderer.setClearColor( 0x000000, 0 )
+        theta = 0
+        // si WebGL ne fonctionne pas sur votre navigateur vous pouvez utiliser le moteur de rendu Canvas à la place
+        // renderer = new THREE.CanvasRenderer();
+        // renderer.setClearColor( 0xffffff, 1);
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        document.getElementById('container').appendChild(renderer.domElement);
+
+        // on initialise la scène
+        scene = new THREE.Scene();
+        projector = new THREE.Projector();
+        // on initialise la camera que l’on place ensuite sur la scène
+        camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 10000 );
+        camera.position.set(0, 0, radius);
+
+        scene.add(camera);
+
+        // on créé un  cube au quel on définie un matériau puis on l’ajoute à la scène 
+
+
+
+//////////////////////////////////////////// flag
+
+        var clothTexture = THREE.ImageUtils.loadTexture( 'img/fnatic-flag.png' );
+        clothTexture.wrapS = clothTexture.wrapT = THREE.RepeatWrapping;
+        clothTexture.anisotropy = 16;
+
+        var clothMaterial = new THREE.MeshPhongMaterial( { alphaTest: 0.5, ambient: 0xffffff, color: 0xffffff, specular: 0x030303, emissive: 0x111111, shininess: 10, map: clothTexture, side: THREE.DoubleSide } );
+
+        // cloth geometry
+        clothGeometry = new THREE.ParametricGeometry( clothFunction, cloth.w, cloth.h );
+        // console.log(clothGeometry.vertices)
+        clothGeometry.dynamic = true;
+        clothGeometry.computeFaceNormals();
+
+        // cloth mesh
+
+        object = new THREE.Mesh( clothGeometry, clothMaterial );
+        object.position.set( -100, -100, 15 );
+        object.rotation.y = 3 * Math.PI/4
+        object.rotation.x = Math.PI/2 
+        scene.add( object );
+
+
+
+/////////////////////////////////////////// forest
+
+        for (var j = 0; j < forest.length; ++j) {
+            heightHere =  getHeight(forest[j].x, forest[j].y)
+            spriteList.push(new Sprite(forest[j].x, forest[j].y, heightHere, Math.random() * 3 + 2, Math.random()* 4 + 5, 'img/arbre.png'))
+        }
+
+
+
+/////////////////////////////////////////// Water
+        // directionalLight = new THREE.DirectionalLight( 0xff9955, 1 );
+        // directionalLight.position.set( 0, 0, 30 );
+        // directionalLight.rotation.z = -Math.PI/2
+        // scene.add( directionalLight );
+
+        directionalLight = new THREE.DirectionalLight( 0xff9955, 1 );
+        directionalLight.position.set( - 1, 0.4, - 1 );
+        scene.add( directionalLight );
+
+        waterNormals = new THREE.ImageUtils.loadTexture( 'img/waternormals.jpg' );
+        waterNormals.wrapS = waterNormals.wrapT = THREE.RepeatWrapping; 
+
+        water = new THREE.Water( renderer, camera, scene, {
+            textureWidth: 512, 
+            textureHeight: 512,
+            waterNormals: waterNormals,
+            alpha:  1.0,
+            sunDirection: directionalLight.position.normalize(),
+            sunColor: 0xff5500,
+            waterColor: 0x001e0f,
+            distortionScale: 20.0,
+        } );
+
+
+        mirrorMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry( parameters.width * 200, parameters.height * 30, 50, 50 ), 
+            water.material
+        );
+        
+        mirrorMesh.position.z = -6
+        mirrorMesh.add( water );
+        mirrorMesh.rotation.z = - Math.PI * 0.25;
+        // mirrorMesh.rotation.x = - Math.PI * 0.5;
+        scene.add( mirrorMesh );
+
+/////////////////////////////////////////// neutrals 
+        spriteList.push(new SpriteAnimated(28, -35, -1, 10, 15, 'img/drake.png', 0x66ff00))
+        spriteList.push(new SpriteAnimated(-29, 42, 2,8, 15, 'img/nashor.png', 0xff00ff))
+
+
+////////////////////////////////////////// test hero
+        champ1 = new SpriteHero(-60, -60, 5, 7, 7, 'img/jayce.png', 0x66ff00, [])
+        scene.add(champ1.mesh)
+
+////////////////////////////////////////// Adding the sprites to the scene
+        for (var i = 0; i < spriteList.length; ++i) { 
+            scene.add(spriteList[i].mesh)
+            scene.add(spriteList[i].light)
+        }
+
+/////////////////////////////////////////// horizontal plan: map and logos 
+        var logo1 = new THREE.PlaneGeometry( 20, 20 );
+        var logo2 = new THREE.PlaneGeometry( 20, 20 );
+        material = new THREE.MeshLambertMaterial( { map: THREE.ImageUtils.loadTexture('img/centred.png', new THREE.SphericalReflectionMapping()), overdraw: true } );
+        materials.push(material)
+        var texturelogo1 = new THREE.MeshLambertMaterial( { map: THREE.ImageUtils.loadTexture('img/logo1.png' ),transparent: true, opacity : 0.8} );
+        var texturelogo2 = new THREE.MeshLambertMaterial( { map: THREE.ImageUtils.loadTexture('img/logo2.png' ),transparent: true, opacity : 0.8} );
+        mesh = new THREE.Mesh( map, material );
+        objects.push(mesh)
+        meshLogo1 = new THREE.Mesh( logo1, texturelogo1 );
+        meshLogo1.position.set(60, 66, 2.1)
+        meshLogo1.rotation.z = -0.8
+        meshLogo2 = new THREE.Mesh( logo2, texturelogo2 );
+        meshLogo2.position.set(-62, -62, 2.1)
+        meshLogo2.rotation.z = 2.42
+        scene.add( mesh );
+        scene.add( meshLogo1 );
+        scene.add( meshLogo2 );
+
+
+
+////////////////////////////////////////// Test
+        var geometry = new THREE.CubeGeometry( 1, 25, 2 );
+        var materialCube = new THREE.MeshLambertMaterial( {color: 0x553333} );
+
+        var cube = new THREE.Mesh( geometry, materialCube );
+        cube.position.set(30,60, 2);
+        // scene.add( cube );
+
+
+///////////////////////////////////////// Spark particles
+        particles = new THREE.Geometry()
+        var pMaterial = new THREE.ParticleBasicMaterial({
+            color: 0xFFFFFF,
+            size: 2,
+            map: THREE.ImageUtils.loadTexture(
+             "img/spark.png"
+            ),
+            blending: THREE.AdditiveBlending,
+            transparent: true
+        });
+
+        for (var p = 0; p < particleCount; p++) {
+            // position values, -250 -> 250
+            // var pX = Math.random() * 200 - 100,
+            //     pY = Math.random() * 200 - 100,
+            //     pZ = 0
+            var pX = Math.random() * 500 - 250,
+                pY = Math.random() * 500 - 250,
+                pZ = Math.random() * 500 - 250
+            var particle = new THREE.Vector3(pX, pY, pZ);
+                particle.velocity = new THREE.Vector3(pX/2, pY/2, pZ/2);
+
+            particles.vertices.push(particle);
+        }
+        particleSystem = new THREE.ParticleSystem(particles, pMaterial);
+        particleSystem.sortParticles = true;
+        scene.add(particleSystem);
+
+
+////////////////////////////////////////// Cadre
+        var geometryBord1 = new THREE.CubeGeometry(215 , 4, 15 );
+        var materialBord1 = new THREE.MeshPhongMaterial( { map: THREE.ImageUtils.loadTexture('img/wood.png' )} );
+        var bord1 = new THREE.Mesh( geometryBord1, materialBord1 );
+        bord1.position.set(100,0, 0);
+        scene.add( bord1 );
+        bord1.rotation.z = Math.PI/2;
+        materials.push(materialBord1);
+        var geometryBord2 = new THREE.CubeGeometry(215 , 4, 15 );
+        var materialBord2 = new THREE.MeshPhongMaterial( { map: THREE.ImageUtils.loadTexture('img/wood.png' )} );
+        var bord2 = new THREE.Mesh( geometryBord2, materialBord2 );
+        bord2.position.set(-100,0, 0);
+        bord2.rotation.z = Math.PI/2;
+        scene.add( bord2 );
+        materials.push(materialBord2)
+        var geometryBord3 = new THREE.CubeGeometry(215 , 4, 10 );
+        var materialBord3 = new THREE.MeshPhongMaterial( { map: THREE.ImageUtils.loadTexture('img/wood.png' )} );
+        var bord3 = new THREE.Mesh( geometryBord3, materialBord3 );
+        bord3.position.set(0, -100, 0);
+        scene.add( bord3 );
+        materials.push(materialBord3)
+        var geometryBord4 = new THREE.CubeGeometry(215 , 4, 10 );
+        var materialBord4 = new THREE.MeshPhongMaterial( { map: THREE.ImageUtils.loadTexture('img/wood.png' )} );
+        var bord4 = new THREE.Mesh( geometryBord4, materialBord4 );
+        bord4.position.set(0, 100, 0);
+        scene.add( bord4 );
+        materials.push(materialBord4);
+        for (var i = 0, l = materials.length; i < l; i++) {
+            materials[i].needsUpdate = true
+        }
+
+
+/////////////////////////////////////////// Lights
+
+        var ambientLight = new THREE.AmbientLight(0xFFFFFF);
+        scene.add(ambientLight);
+
+        for (var i = 0; i < neutralLights.length; ++i) {
+
+            heightHere =  getHeight(neutralLights[i].x, neutralLights[i].y)
+            var light = new THREE.PointLight( 0xFF7722, 3, 15 );
+            light.position.set(  neutralLights[i].x,  neutralLights[i].y,  neutralLights[i].z );
+            scene.add(light)
+
+
+        }
+        var areaLight1 = new THREE.AreaLight( 0x00ff00, 10);
+        areaLight1.position.set( 0.0001, 10.0001, 10.5001 );
+        areaLight1.width = 10;
+        areaLight1.height = 2;
+        scene.add( areaLight1 );
+
+        // renderer.setClearColor( 0xffffff, 1);
+
+        document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+        document.addEventListener( 'mouseup', onDocumentMouseUp, false);
+        document.addEventListener( 'mousemove', onDocumentMouseMove, false);
+
+        var mousewheelevt=(/Firefox/i.test(navigator.userAgent))? "DOMMouseScroll" : "mousewheel" //FF doesn't recognize mousewheel as of FF3.x
+		if (document.attachEvent) //if IE (and Opera depending on user setting)
+		    document.attachEvent("on"+mousewheelevt, onDocumentMouseWheel)
+		else if (document.addEventListener) //WC3 browsers
+		    document.addEventListener(mousewheelevt, onDocumentMouseWheel, false)
+        // document.addEventListener( 'keydown', onKeyDocumentPress, false );
+
+
+
+    }
+
+
+    function animate(){
+        var elapsedTime = frameClock.getDelta();
+        
+        // on appel la fonction animate() récursivement à chaque frame
+        requestAnimationFrame( animate );
+
+        //theta += elapsedTime * 5;
+
+        for (var i = 0; i < spriteList.length; ++i) { 
+        // console.log(spriteList[i])
+            spriteList[i].update(theta * Math.PI/180);
+        }
+
+        // var pCount = particleCount;
+        // while (pCount--) {
+
+        //     // get the particle
+        //     var particle = particles.vertices[pCount];
+        //     // check if we need to reset
+        //     if (particle.z > 20) {
+        //         particle.z -= 0.2;
+        //         particle.velocity.z = 0;
+        //     } 
+        //    if (particle.z < 0) {
+        //         particle.z = 0;
+        //     }
+
+        //     // update the velocity with
+        //     // a splat of randomniz
+        //     particle.velocity.z += Math.random() * 0.2 - 0.1;
+
+        //     // and the position
+        //     particle.z += particle.velocity.z
+
+        //     // flag to the particle system
+        //     // that we've changed its vertices.
+
+        // }
+
+
+        // particleSystem.geometry.needsUpdate = true;
+        if (champ1.mesh.position.x > 80 && champ1.mesh.position.y > 80) offset = {x: -0.5,y: -0.5, z: 0}
+        if (champ1.mesh.position.x < -80 && champ1.mesh.position.y < -80) offset = {x: 0.5,y: 0.5, z: 0}
+
+        champ1.move(offset)
+        var time = Date.now();
+
+        windStrength = Math.cos( time / 7000 ) *5;
+        windForce.set( Math.sin( time / 2000 ), Math.cos( time / 3000 ), Math.sin( time / 1000 ) ).normalize().multiplyScalar( windStrength );
+
+
+        simulate(time);
+        water.material.uniforms.time.value += 1.0 / 60.0;
+        water.render()
+
+        var timer = Date.now() * 0.0002;
+
+        var p = cloth.particles;
+        // console.log(p)
+
+        for ( var i = 0, il = p.length; i < il; i ++ ) {
+            clothGeometry.vertices[i].copy(p[ i ].position);
+
+        }
+
+        clothGeometry.computeFaceNormals();
+        clothGeometry.computeVertexNormals();
+
+        clothGeometry.normalsNeedUpdate = true;
+        clothGeometry.verticesNeedUpdate = true;
+
+        /*camera.position.x = 300 * Math.cos( theta *Math.PI/180);
+        camera.position.y = 300 * Math.sin( theta *Math.PI/180);
+        camera.position.z = 200;*/
+
+	    camera.position.x = radius * Math.sin(theta*Math.PI/180) * Math.cos(phi*Math.PI/180);
+	    camera.position.y = radius * Math.sin(theta*Math.PI/180) * Math.sin(phi*Math.PI/180);;
+	    camera.position.z = radius * Math.cos(theta*Math.PI/180);
+
+ 
+        // meshTour.rotation.y = theta
+        camera.up = new THREE.Vector3(0,0,1);
+        camera.lookAt(new THREE.Vector3(0,0,0));
+        // on effectue le rendu de la scène
+        renderer.render( scene, camera );
+    }
+
+
+
+    function onKeyDocumentPress(event) {
+        event.preventDefault();   
+        console.log( JSON.stringify(map.vertices));
+    }
+
+    function onDocumentMouseMove( event ) {
+    	event.preventDefault();
+    	if(mouseDown){
+    		var offset = {
+    			x: event.clientX - lastMousePosition.x,
+    			y: event.clientY - lastMousePosition.y
+    		}
+    		lastMousePosition.x = event.clientX;
+    		lastMousePosition.y = event.clientY;
+
+        	phi += 120 * (-offset.x/1920);
+    		theta += 120 * (offset.y/1080);
+    	}
+    }
+
+    function onDocumentMouseWheel( event ) {
+		var evt=window.event || event //equalize event object
+	    var delta=evt.detail? evt.detail*(120) : evt.wheelDelta //check for detail first so Opera uses that instead of wheelDelta
+	    radius += delta/30;
+	    console.log();
+    }
+
+
+    function onDocumentMouseDown( event ) {
+        event.preventDefault();
+        mouseDown = true;
+        lastMousePosition.x = event.clientX;
+        lastMousePosition.y = event.clientY;
+
+        var vector = new THREE.Vector3( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 2 + 1, 0.5 );
+        projector.unprojectVector( vector, camera );
+
+        var raycaster = new THREE.Raycaster( camera.position, vector.sub( camera.position ).normalize() );
+
+        var intersects = raycaster.intersectObjects( objects );
+
+        if ( intersects.length > 0 ) {
+        // spriteList.push(new Sprite(intersects[0].point.x-7, intersects[0].point.y-3, 5, 6, 10, 'img/redtower.png'))
+        // foretList.push({x:parseInt(intersects[0].point.x.toFixed() - 7), y:parseInt(intersects[0].point.y.toFixed() -3)})
+        // scene.add(spriteList[spriteList.length-1].mesh)
+        // console.log( JSON.stringify(foretList));
+
+        for (var i = 0, l = map.vertices.length; i < l; i++) {
+          if (map.vertices[i].x + 5 < intersects[0].point.x +10 && map.vertices[i].x + 5> intersects[0].point.x -10 &&
+            map.vertices[i].y+ 2 < intersects[0].point.y +10 && map.vertices[i].y+ 2 > intersects[0].point.y -10) {
+            map.vertices[i].z -=0.5;
+            map.verticesNeedUpdate = true;
+          }
+        }
+
+        // var light = new THREE.PointLight( 0x0088FF, 3, 20 );
+        // light.position.set(  intersects[0].point.x,  intersects[0].point.y, 5 );
+        // lightList.push(light.position);
+        // console.log( JSON.stringify(lightList));
+
+        // scene.add( light );
+        // for (var i = 0, l = materials.length; i < l; i++) {
+        //     materials[i].needsUpdate = true;
+        // }
+
+        }
+
+        /*
+        // Parse all the faces
+        for ( var i in intersects ) {
+
+        intersects[ i ].face.material[ 0 ].color.setHex( Math.random() * 0xffffff | 0x80000000 );
+
+        }
+        */
+    }
+
+    function onDocumentMouseUp(event){
+    	mouseDown = false;
+    }
+
+   
+    function getHeight(x, y) {
+            for (var i = 0, l = map.vertices.length; i < l; i++) {
+                if (map.vertices[i].x + 5 < x +8 && map.vertices[i].x + 5> x -8 &&
+                    map.vertices[i].y+ 2 < y +8 && map.vertices[i].y+ 2 > y -8) {
+                    return map.vertices[i].z + 5;
+            }
+        }
+        return 5;
+    }
+
+
+  // sprite prototype
+
+
+    </script>
+</body>
+</html>
