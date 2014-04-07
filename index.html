@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <link  href="" rel="stylesheet"/>
   </head>
-<body  style="background-color: black; background-image: url('img/background.png'); background-repeat: no-repeat">
+<body oncontextmenu="return false;" style="background-color: black; background-image: url('img/background.png'); background-repeat: no-repeat">
     
 <div id="container"></div>
 
@@ -19,12 +19,14 @@
 
 
     var renderer, scene, camera, projector, mesh, objects = [], theta=0, phi=0, radius = 300, spriteList = [], foretList = [], materials = [], lightList = [], frameClock = new THREE.Clock();
-    var particleCount = 100
-    var particleSystem
-    var champ1
+    var particleCount = 100;
+    var particleSystem;
+    var champ1;
+    var lookAtVector = new THREE.Vector3(0,0,0);
 
     var mouseDown = false;
     var lastMousePosition = {x:0, y:0}
+    var rightMouseDown = false;
 
     var offset = {x: 0.5,y: 0.5, z: 0}
     var particles
@@ -655,14 +657,14 @@
         camera.position.y = 300 * Math.sin( theta *Math.PI/180);
         camera.position.z = 200;*/
 
-	    camera.position.x = radius * Math.sin(theta*Math.PI/180) * Math.cos(phi*Math.PI/180);
-	    camera.position.y = radius * Math.sin(theta*Math.PI/180) * Math.sin(phi*Math.PI/180);;
-	    camera.position.z = radius * Math.cos(theta*Math.PI/180);
+	    camera.position.x = radius * Math.sin(theta*Math.PI/180) * Math.cos(phi*Math.PI/180) + lookAtVector.x;
+	    camera.position.y = radius * Math.sin(theta*Math.PI/180) * Math.sin(phi*Math.PI/180) + lookAtVector.y;
+	    camera.position.z = radius * Math.cos(theta*Math.PI/180) + lookAtVector.z;
 
  
         // meshTour.rotation.y = theta
         camera.up = new THREE.Vector3(0,0,1);
-        camera.lookAt(new THREE.Vector3(0,0,0));
+        camera.lookAt(lookAtVector);
         // on effectue le rendu de la scène
         renderer.render( scene, camera );
     }
@@ -687,6 +689,17 @@
         	phi += 120 * (-offset.x/1920);
     		theta += 120 * (offset.y/1080);
     	}
+        else if(rightMouseDown){
+            var offset = {
+                x: event.clientX - lastMousePosition.x,
+                y: event.clientY - lastMousePosition.y
+            }
+
+            lookAtVector.x -= offset.x/2.0;
+            lookAtVector.y += offset.y/2.0;
+            lastMousePosition.x = event.clientX;
+            lastMousePosition.y = event.clientY;
+        }
     }
 
     function onDocumentMouseWheel( event ) {
@@ -696,10 +709,26 @@
 	    console.log();
     }
 
+    function fixWhich(e) {
+        if (!e.which && e.button) {
+            if (e.button & 1) e.which = 1      // Left
+            else if (e.button & 4) e.which = 2 // Middle
+            else if (e.button & 2) e.which = 3 // Right
+        }
+    }
+
 
     function onDocumentMouseDown( event ) {
         event.preventDefault();
-        mouseDown = true;
+        fixWhich(event);
+        if(event.which == 3){
+            rightMouseDown = true;
+            console.log("NOT");
+        }
+        if(event.which == 1){
+            console.log("TRUE");
+            mouseDown = true;
+        } 
         lastMousePosition.x = event.clientX;
         lastMousePosition.y = event.clientY;
 
@@ -747,7 +776,13 @@
     }
 
     function onDocumentMouseUp(event){
-    	mouseDown = false;
+        fixWhich(event);
+        if(event.which == 3){
+            rightMouseDown = false;
+        }
+        else if(event.which == 1){
+            mouseDown = false;
+        }
     }
 
    
