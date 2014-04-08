@@ -90,35 +90,36 @@
     ////////////////////////// classe SpriteAnimated
     function SpriteAnimated(x, y, z, w, h, texture, couleur){
         var selfTexture = new THREE.ImageUtils.loadTexture(texture);
-        this.sprite1 = [new THREE.Vector2(0, 0), new THREE.Vector2(.333, 0), new THREE.Vector2(.333, 1), new THREE.Vector2(0, 1)];
-        this.sprite2 = [new THREE.Vector2(0.333, 0), new THREE.Vector2(.666, 0), new THREE.Vector2(.666, 1), new THREE.Vector2(0.333, 1)];
-        this.sprite3 = [new THREE.Vector2(0.666, 0), new THREE.Vector2(1, 0), new THREE.Vector2(1, 1), new THREE.Vector2(0.666, 1)];
+        this.frame1 = [new THREE.Vector2(0, 0), new THREE.Vector2(.333, 0), new THREE.Vector2(.333, 1), new THREE.Vector2(0, 1)];
+        this.frame2 = [new THREE.Vector2(0.333, 0), new THREE.Vector2(.666, 0), new THREE.Vector2(.666, 1), new THREE.Vector2(0.333, 1)];
+        this.frame3 = [new THREE.Vector2(0.666, 0), new THREE.Vector2(1, 0), new THREE.Vector2(1, 1), new THREE.Vector2(0.666, 1)];
         this.frame = Math.random() * 20;
-        var material = new THREE.MeshLambertMaterial( { map: selfTexture,transparent: true,  overdraw: true, alphaTest: 0.5 } );
+        var material = new THREE.SpriteMaterial( { map: selfTexture,transparent: true,  overdraw: true, alphaTest: 0.5 } );
         materials.push(material);
-        var geometry = new THREE.PlaneGeometry( w, h);
-        geometry.faceVertexUvs[0][0] = [ this.sprite3[0], this.sprite3[1], this.sprite3[3] ];
-        geometry.faceVertexUvs[0][1] = [ this.sprite3[1], this.sprite3[2], this.sprite3[3] ];
-        this.mesh = new THREE.Mesh(geometry, material);
+        var sprite = new THREE.Sprite( material );
+        sprite.scale.set( w, h, 1 );
+        console.log(sprite.geometry)
+        // sprite.geometry.faceVertexUvs = [ this.frame3[0], this.frame3[1], this.frame3[3] ];
+        this.mesh = sprite
+        console.log(this.mesh.geometry)
         this.light = new THREE.PointLight( couleur, 5, 19 );
         this.light.position.set(x, y, z - 3);
         this.mesh.position.set(x, y, z);
-        this.mesh.rotation.x = Math.PI/2;
-        this.mesh.rotation.y = Math.PI/2;
     }
     //heritage
     SpriteAnimated.prototype = new Sprite()
     SpriteAnimated.prototype.update = function(theta) {
-        this.mesh.rotation.y = theta + Math.PI/2;
+
+        // this.mesh.rotation.y = theta + Math.PI/2;
+        // this.mesh.rotation.x = theta;
         var oldframe = this.frame;
 
-        var tabFrame = [this.sprite1,this.sprite1, this.sprite2, this.sprite3,this.sprite3, this.sprite2];
+        var tabFrame = [this.frame1,this.frame1, this.frame2, this.frame3,this.frame3, this.frame2];
         this.frame += 1;
         if (this.frame > 50)  this.frame = 0;
         if (tabFrame[Math.round(oldframe/10)] != tabFrame[Math.round(this.frame/10)]) {
-            this.mesh.geometry.faceVertexUvs[0][0] = [ tabFrame[Math.round(this.frame/10)][0],  tabFrame[Math.round(this.frame/10)][1],  tabFrame[Math.round(this.frame/10)][3] ];
-            this.mesh.geometry.faceVertexUvs[0][1] = [ tabFrame[Math.round(this.frame/10)][1],  tabFrame[Math.round(this.frame/10)][2],  tabFrame[Math.round(this.frame/10)][3] ];
-            this.mesh.geometry.uvsNeedUpdate= true;
+            // this.mesh.geometry.faceVertexUvs = [ tabFrame[Math.round(this.frame/10)][0],  tabFrame[Math.round(this.frame/10)][1],  tabFrame[Math.round(this.frame/10)][3] ];
+            // this.mesh.geometry.uvsNeedUpdate= true;
         }
     }
 
@@ -418,7 +419,7 @@
             textureWidth: 512, 
             textureHeight: 512,
             waterNormals: waterNormals,
-            alpha:  1.0,
+            alpha:  0.6,
             sunDirection: directionalLight.position.normalize(),
             sunColor: 0xff5500,
             waterColor: 0x001e0f,
