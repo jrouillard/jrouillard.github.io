@@ -222,23 +222,23 @@ THREE.Water = function (renderer, camera, scene, options) {
 	this.updateTextureMatrix();
 
 
-	var debugMode = true;
+	// var debugMode = true;
 
-	if ( debugMode ) {
+	// if ( debugMode ) {
 
-		var arrow = new THREE.ArrowHelper(new THREE.Vector3( 0, 0, 1 ), new THREE.Vector3( 0, 0, 0 ), 10, 0xffff80 );
-		var planeGeometry = new THREE.Geometry();
-		planeGeometry.vertices.push( new THREE.Vector3( -10, -10, 0 ) );
-		planeGeometry.vertices.push( new THREE.Vector3( 10, -10, 0 ) );
-		planeGeometry.vertices.push( new THREE.Vector3( 10, 10, 0 ) );
-		planeGeometry.vertices.push( new THREE.Vector3( -10, 10, 0 ) );
-		planeGeometry.vertices.push( planeGeometry.vertices[0] );
-		var plane = new THREE.Line( planeGeometry, new THREE.LineBasicMaterial( { color: 0xffff80 } ) );
+	// 	var arrow = new THREE.ArrowHelper(new THREE.Vector3( 0, 0, 1 ), new THREE.Vector3( 0, 0, 0 ), 10, 0xffff80 );
+	// 	var planeGeometry = new THREE.Geometry();
+	// 	planeGeometry.vertices.push( new THREE.Vector3( -10, -10, 0 ) );
+	// 	planeGeometry.vertices.push( new THREE.Vector3( 10, -10, 0 ) );
+	// 	planeGeometry.vertices.push( new THREE.Vector3( 10, 10, 0 ) );
+	// 	planeGeometry.vertices.push( new THREE.Vector3( -10, 10, 0 ) );
+	// 	planeGeometry.vertices.push( planeGeometry.vertices[0] );
+	// 	var plane = new THREE.Line( planeGeometry, new THREE.LineBasicMaterial( { color: 0xffff80 } ) );
 		
-		this.add(arrow);
-		this.add(plane);
+	// 	this.add(arrow);
+	// 	this.add(plane);
 
-	}
+	// }
 
 
 

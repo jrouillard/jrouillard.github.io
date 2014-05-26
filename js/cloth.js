@@ -13,13 +13,13 @@
 var DAMPING = 0.03;
 var DRAG = 1 - DAMPING;
 var MASS = .1;
-var restDistance = 1.5;
+var restDistance = 3;
 
 
-var xSegs = 10; //
+var xSegs = 30; //
 var ySegs = 10; //
 
-var clothFunction = plane(restDistance * xSegs, restDistance * ySegs);
+var clothFunction = plane(restDistance  * xSegs, restDistance * 4 * ySegs);
 
 var cloth = new Cloth(xSegs, ySegs);
 
@@ -239,9 +239,12 @@ function simulate(time) {
 			;i<il;i++) {
 		particle = particles[i];
 		pos = particle.position;
-		if (pos.y < -250) {
-			pos.y = -250;
+		if (pos.z < 0.1 && pos.y > 41) {
+			pos.z = 0.1;
 		}
+		// if (pos.y < 0) {
+		// 	pos.y = 0;
+		// }
 	}
 
 	// Pin Constrains
