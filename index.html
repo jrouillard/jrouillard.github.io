@@ -55,10 +55,17 @@
     var object, arrow;
 
     ////////////////////////// classe Sprite
-    function Sprite(x, y, z, w, h, texture){
+    function Sprite(x, y, z, w, h, img){
         // objects.push( this.mesh );
 
-        var material = new THREE.SpriteMaterial( { map: THREE.ImageUtils.loadTexture( texture ), color: 0xffffff, fog: true } );
+
+        // var textureCanvas2 = new THREE.Texture( imageCanvas, THREE.UVMapping, THREE.RepeatWrapping, THREE.RepeatWrapping, THREE.NearestFilter, THREE.NearestFilter );
+        // Texture( image, mapping, wrapS, wrapT, magFilter, minFilter, format, type, anisotropy )
+        var texture = THREE.ImageUtils.loadTexture( img )
+        texture.magFilter = THREE.NearestFilter
+        texture.minFilter = THREE.NearestFilter
+
+        var material = new THREE.SpriteMaterial( { map: texture, color: 0xffffff, fog: true } );
         materials.push(material)
         this.mesh = new THREE.Sprite( material );
         this.mesh.scale.set( w, h, 1 );
@@ -68,12 +75,17 @@
 
 
     ////////////////////////// classe SpriteBatiment
-    function SpriteBatiment(x, y, z, w, h, texture, couleur){
+    function SpriteBatiment(x, y, z, w, h, img, couleur){
         this.light = new THREE.PointLight( couleur, 3, 15 );
         this.light.position.set(x, y, z + 3)
         // objects.push( this.mesh );
 
-        var material = new THREE.SpriteMaterial( { map: THREE.ImageUtils.loadTexture( texture ), color: 0xffffff, fog: true } );
+
+        var texture = THREE.ImageUtils.loadTexture( img )
+        texture.magFilter = THREE.NearestFilter
+        texture.minFilter = THREE.NearestFilter
+
+        var material = new THREE.SpriteMaterial( { map: texture , color: 0xffffff, fog: true } );
         materials.push(material)
         this.mesh = new THREE.Sprite( material );
         this.mesh.scale.set( w, h, 1 );
@@ -456,7 +468,11 @@
 /////////////////////////////////////////// horizontal plan: map and logos 
         var logo1 = new THREE.PlaneGeometry( 20, 20 );
         var logo2 = new THREE.PlaneGeometry( 20, 20 );
-        material = new THREE.MeshLambertMaterial( { map: THREE.ImageUtils.loadTexture('img/centred.png', new THREE.SphericalReflectionMapping()), overdraw: true } );
+        var textureSol = THREE.ImageUtils.loadTexture( 'img/centred.png' )
+        textureSol.magFilter = THREE.NearestFilter
+        textureSol.minFilter = THREE.NearestFilter
+
+        material = new THREE.MeshLambertMaterial( { map: textureSol, overdraw: true } );
         materials.push(material)
         var texturelogo1 = new THREE.MeshLambertMaterial( { map: THREE.ImageUtils.loadTexture('img/logo1.png' ),transparent: true, opacity : 0.8} );
         var texturelogo2 = new THREE.MeshLambertMaterial( { map: THREE.ImageUtils.loadTexture('img/logo2.png' ),transparent: true, opacity : 0.8} );
@@ -515,27 +531,31 @@
 
 ////////////////////////////////////////// Cadre
         var geometryBord1 = new THREE.CubeGeometry(215 , 4, 15 );
-        var materialBord1 = new THREE.MeshPhongMaterial( { map: THREE.ImageUtils.loadTexture('img/wood.png' )} );
+
+        var textureWood = THREE.ImageUtils.loadTexture( 'img/wood.png' )
+        textureWood.magFilter = THREE.NearestFilter
+        textureWood.minFilter = THREE.NearestFilter
+        var materialBord1 = new THREE.MeshPhongMaterial( { map: textureWood} );
         var bord1 = new THREE.Mesh( geometryBord1, materialBord1 );
         bord1.position.set(100,0, 0);
         scene.add( bord1 );
         bord1.rotation.z = Math.PI/2;
         materials.push(materialBord1);
         var geometryBord2 = new THREE.CubeGeometry(215 , 4, 15 );
-        var materialBord2 = new THREE.MeshPhongMaterial( { map: THREE.ImageUtils.loadTexture('img/wood.png' )} );
+        var materialBord2 = new THREE.MeshPhongMaterial( { map: textureWood} );
         var bord2 = new THREE.Mesh( geometryBord2, materialBord2 );
         bord2.position.set(-100,0, 0);
         bord2.rotation.z = Math.PI/2;
         scene.add( bord2 );
         materials.push(materialBord2)
         var geometryBord3 = new THREE.CubeGeometry(215 , 4, 10 );
-        var materialBord3 = new THREE.MeshPhongMaterial( { map: THREE.ImageUtils.loadTexture('img/wood.png' )} );
+        var materialBord3 = new THREE.MeshPhongMaterial( { map: textureWood} );
         var bord3 = new THREE.Mesh( geometryBord3, materialBord3 );
         bord3.position.set(0, -100, 0);
         scene.add( bord3 );
         materials.push(materialBord3)
         var geometryBord4 = new THREE.CubeGeometry(215 , 4, 10 );
-        var materialBord4 = new THREE.MeshPhongMaterial( { map: THREE.ImageUtils.loadTexture('img/wood.png' )} );
+        var materialBord4 = new THREE.MeshPhongMaterial( { map: textureWood} );
         var bord4 = new THREE.Mesh( geometryBord4, materialBord4 );
         bord4.position.set(0, 100, 0);
         scene.add( bord4 );
@@ -706,7 +726,7 @@
     function onDocumentMouseWheel( event ) {
 		var evt=window.event || event //equalize event object
 	    var delta=evt.detail? evt.detail*(120) : evt.wheelDelta //check for detail first so Opera uses that instead of wheelDelta
-	    radius += delta/30;
+	    radius -= delta/30;
 	    console.log();
     }
 
@@ -746,13 +766,13 @@
         // scene.add(spriteList[spriteList.length-1].mesh)
         // console.log( JSON.stringify(foretList));
 
-        for (var i = 0, l = map.vertices.length; i < l; i++) {
-          if (map.vertices[i].x + 5 < intersects[0].point.x +10 && map.vertices[i].x + 5> intersects[0].point.x -10 &&
-            map.vertices[i].y+ 2 < intersects[0].point.y +10 && map.vertices[i].y+ 2 > intersects[0].point.y -10) {
-            map.vertices[i].z -=0.5;
-            map.verticesNeedUpdate = true;
-          }
-        }
+        // for (var i = 0, l = map.vertices.length; i < l; i++) {
+        //   if (map.vertices[i].x + 5 < intersects[0].point.x +10 && map.vertices[i].x + 5> intersects[0].point.x -10 &&
+        //     map.vertices[i].y+ 2 < intersects[0].point.y +10 && map.vertices[i].y+ 2 > intersects[0].point.y -10) {
+        //     map.vertices[i].z -=0.5;
+        //     map.verticesNeedUpdate = true;
+        //   }
+        // }
 
         // var light = new THREE.PointLight( 0x0088FF, 3, 20 );
         // light.position.set(  intersects[0].point.x,  intersects[0].point.y, 5 );
