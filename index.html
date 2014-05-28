@@ -53,9 +53,99 @@
     var object, arrow;
 
 
+    function Border( x, y, z, textures, rotation, height ) {
+        this.parent = new THREE.Object3D();
 
-    function Minimap(flagTeamRed, flagTeamBlue, logoTeamBlue, logoTeamRed, heightmap, groundTexture, borderTexture) {
+        var textureWood = THREE.ImageUtils.loadTexture( textures.plank );
+        var materialBord = new THREE.MeshPhongMaterial( { map: textureWood} );
+        var geometryBord = new THREE.CubeGeometry(215 , 4, height );
+        this.bord = new THREE.Mesh( geometryBord, materialBord );
+        this.bord.position.set(x, y, z);
+        this.bord.rotation.z = rotation;
 
+        this.parent.add(this.bord)
+
+        var functionPlank = function(pos) {
+            if (pos.z > 0.1 && pos.y > 41) {
+                pos.z = 0.1
+                console.log()
+            }
+            return pos.z
+        }
+        var flag = new Flag(3, 30, 10, x, y, z - 59.9 + height / 2, textures.flag, textures.top, functionPlank)
+        flags.push(flag)
+        flag.rotate(rotation + Math.PI / 2)
+
+        this.parent.add(flag.parent)
+        console.log(flag)
+
+    }
+
+
+    function Minimap( heightmap, textures, buildingsPositions, lightsPositions ) {
+
+        // attributes :
+        this.parent = new THREE.Object3D();
+        this.bordure;                  //
+        this.bordure2;                 // => borders
+        this.bordure3;                 //
+        this.bordure4;                 //
+        this.material;              // ground texture
+        this.mesh;                  // ground mesh
+        this.buildings;             // buildings
+
+
+        // CADRE MINIMAP
+       
+        this.bordure  = new Border( -100, 0, 0, {"plank" : textures.plank, "flag" : textures.flagBlue, "top" : textures.topBlue}, Math.PI / 2 , 15) 
+        this.bordure2 = new Border( 100, 0, 0,  {"plank" : textures.plank, "flag" : textures.flagRed, "top" : textures.topRed}, 3 * Math.PI / 2 , 15) 
+        this.bordure3 = new Border( 0, 100, 0,  {"plank" : textures.plank, "flag" : textures.flagRed, "top" : textures.topRed}, 0 ,10 ) 
+        this.bordure4 = new Border( 0, -100, 0, {"plank" : textures.plank, "flag" : textures.flagBlue, "top" : textures.topBlue}, Math.PI , 10) 
+        this.parent.add( this.bordure );
+        this.parent.add( this.bordure2 );
+        this.parent.add( this.bordure3 );
+        this.parent.add( this.bordure4 );
+
+        // LIGHTS MINIMAP
+        var lights = []
+        for (var i = 0; i < lightsPositions.length; ++i) {
+
+            heightHere =  getHeight(lightsPositions[i].x, lightsPositions[i].y)
+            lights.push(new THREE.PointLight( 0xFF7722, 3, 15 ));
+            lights[i].position.set(  lightsPositions[i].x,  lightsPositions[i].y,  lightsPositions[i].z );
+            this.parent.add(lights[i])
+
+        }
+
+
+
+        // LOGOS MINIMAP
+        var logo1 = new THREE.PlaneGeometry( 20, 20 );
+        var logo2 = new THREE.PlaneGeometry( 20, 20 );
+        var groundTexture = THREE.ImageUtils.loadTexture( textures.groundTexture )
+
+        groundTexture.magFilter = THREE.NearestFilter
+        groundTexture.minFilter = THREE.NearestFilter
+
+        this.material = new THREE.MeshLambertMaterial( { map: groundTexture, overdraw: true,  side: THREE.DoubleSide } );
+        materials.push(this.material)
+        var texturelogo1 = new THREE.MeshLambertMaterial( { map: THREE.ImageUtils.loadTexture( textures.logo1 ),transparent: true, opacity : 0.8} );
+        var texturelogo2 = new THREE.MeshLambertMaterial( { map: THREE.ImageUtils.loadTexture( textures.logo1 ),transparent: true, opacity : 0.8} );
+        this.mesh = new THREE.Mesh( map, this.material );
+        objects.push(this.mesh)
+
+        var meshLogo1 = new THREE.Mesh( logo1, texturelogo1 );
+        meshLogo1.position.set(60, 66, 2.1)
+        meshLogo1.rotation.z = -0.8
+        var meshLogo2 = new THREE.Mesh( logo2, texturelogo2 );
+        meshLogo2.position.set(-62, -62, 2.1)
+        meshLogo2.rotation.z = 2.42
+
+        this.parent.add( this.mesh );
+        this.parent.add( meshLogo1 );
+        this.parent.add( meshLogo2 );
+
+        scene.add(this.parent);
     }
 
     ////////////////////////// classe Sprite
@@ -142,7 +232,7 @@
         this.object.rotation.x = Math.PI/2 
         this.parent.add(this.object)
         this.parent.add(this.top)
-        scene.add(this.parent)
+        // scene.add(this.parent)
         //texture
     }
 
@@ -488,79 +578,16 @@
 
 
 //////////////////////////////////////////// flag
-        var flagRed1 = new Flag(3, 30, 10, 100, 0, -52.4, 'img/fnatic-flag.png', 'img/topflagRed.png', function(pos) {
-            if (pos.z > 0.1 && pos.y > 41) {
-                pos.z = 0.1
-                console.log()
-            }
-            return pos.z
-        })
-        var flagRed2 = new Flag(3, 30, 10, 0, 100, -54.9, 'img/fnatic-flag.png', 'img/topflagRed.png', function(pos) {
-            if (pos.z > 0.1 && pos.y > 41) {
-                pos.z = 0.1
-                console.log()
-            }
-            return pos.z
-        })
+ 
 
-        var flagBlue1 = new Flag(3, 30, 10, -100, 0, -52.4, 'img/c9-flag.png', 'img/topflagBlue.png', function(pos) {
-            if (pos.z > 0.1 && pos.y > 41) {
-                pos.z = 0.1
-                console.log()
-            }
-            return pos.z
-        })
-
-        var flagBlue2 = new Flag(3, 30, 10, 0, -100, -54.9, 'img/c9-flag.png', 'img/topflagBlue.png', function(pos) {
-            if (pos.z > 0.1 && pos.y > 41) {
-                pos.z = 0.1
-                console.log()
-            }
-            return pos.z
-        })
-        flagRed2.rotate( Math.PI )
-        flagRed2.rotate( 3*Math.PI/2 )
-        flagBlue1.rotate( Math.PI )
-        flagBlue2.rotate( 3*Math.PI/2 )
-        flags.push(flagRed1,flagRed2, flagBlue1, flagBlue2);
-        // var clothTexture = THREE.ImageUtils.loadTexture( 'img/fnatic-flag.png' );
-        // var clothTop = THREE.ImageUtils.loadTexture( 'img/topflag.png' );
-
-        // clothTexture.magFilter = THREE.NearestFilter
-        // clothTexture.minFilter = THREE.NearestFilter
-        // clothTexture.wrapS = clothTexture.wrapT = THREE.RepeatWrapping;
-        // clothTexture.anisotropy = 16;
-
-        // var geometrytop = new THREE.PlaneGeometry( 90, 4 );
-        // var materialtop = new THREE.MeshPhongMaterial(({ map : clothTop}) );
-        // var topflag = new THREE.Mesh( geometrytop, materialtop );
-        // topflag.rotation.z = Math.PI/2 
-        // topflag.position.set( 100, 0.1, 7.6 );
-        // scene.add( topflag );
-        // var topflag2 = new THREE.Mesh( geometrytop, materialtop );
-        // topflag2.position.set( 0, 100.1, 5.1 );
-        // scene.add( topflag2 );
-
-        // var clothMaterial = new THREE.MeshPhongMaterial( { alphaTest: 0.5, ambient: 0xffffff, color: 0xffffff, specular: 0x030303, emissive: 0x111111, shininess: 10, map: clothTexture, side: THREE.DoubleSide } );
-
-        // // cloth geometry
-        // clothGeometry = new THREE.ParametricGeometry( clothFunction, cloth.w, cloth.h );
-        // // console.log(clothGeometry.vertices)
-        // clothGeometry.dynamic = true;
-        // clothGeometry.computeFaceNormals();
-
-        // // cloth mesh
-
-        // object = new THREE.Mesh( clothGeometry, clothMaterial );
-        // object.position.set( 102.15, 0, -52.4 );
-        // object.rotation.y = 3 * Math.PI/2
-        // object.rotation.x = Math.PI/2 
-        // scene.add( object );
-
-        // object2 = new THREE.Mesh( clothGeometry, clothMaterial );
-        // object2.position.set( 0, 102.25, -55 );
-        // object2.rotation.x = Math.PI/2 
-        // scene.add( object2 );
+        var bordure = new Border( -100, 0, 0, {"plank" : "img/wood.png", "flag" : 'img/c9-flag.png', "top" : 'img/topflagBlue.png'}, Math.PI / 2 , 15) 
+        var bordure2 = new Border( 100, 0, 0, {"plank" : "img/wood.png", "flag" : 'img/fnatic-flag.png', "top" : 'img/topflagRed.png'}, 3 * Math.PI / 2 , 15) 
+        var bordure3 = new Border( 0, 100, 0, {"plank" : "img/wood.png", "flag" : 'img/fnatic-flag.png', "top" : 'img/topflagRed.png'}, 0 ,10 ) 
+        var bordure4 = new Border( 0, -100, 0, {"plank" : "img/wood.png", "flag" : 'img/c9-flag.png', "top" : 'img/topflagBlue.png'}, Math.PI , 10) 
+        scene.add(bordure.parent)
+        scene.add(bordure2.parent)
+        scene.add(bordure3.parent)
+        scene.add(bordure4.parent)
 
 
 
@@ -687,42 +714,6 @@
         particleSystem = new THREE.ParticleSystem(particles, pMaterial);
         particleSystem.sortParticles = true;
         scene.add(particleSystem);
-
-
-////////////////////////////////////////// Cadre
-        var geometryBord1 = new THREE.CubeGeometry(215 , 4, 15 );
-
-        var textureWood = THREE.ImageUtils.loadTexture( 'img/wood.png' )
-        textureWood.magFilter = THREE.NearestFilter
-        textureWood.minFilter = THREE.NearestFilter
-        var materialBord1 = new THREE.MeshPhongMaterial( { map: textureWood} );
-        var bord1 = new THREE.Mesh( geometryBord1, materialBord1 );
-        bord1.position.set(100,0, 0);
-        scene.add( bord1 );
-        bord1.rotation.z = Math.PI/2;
-        materials.push(materialBord1);
-        var geometryBord2 = new THREE.CubeGeometry(215 , 4, 15 );
-        var materialBord2 = new THREE.MeshPhongMaterial( { map: textureWood} );
-        var bord2 = new THREE.Mesh( geometryBord2, materialBord2 );
-        bord2.position.set(-100,0, 0);
-        bord2.rotation.z = Math.PI/2;
-        scene.add( bord2 );
-        materials.push(materialBord2)
-        var geometryBord3 = new THREE.CubeGeometry(215 , 4, 10 );
-        var materialBord3 = new THREE.MeshPhongMaterial( { map: textureWood} );
-        var bord3 = new THREE.Mesh( geometryBord3, materialBord3 );
-        bord3.position.set(0, -100, 0);
-        scene.add( bord3 );
-        materials.push(materialBord3)
-        var geometryBord4 = new THREE.CubeGeometry(215 , 4, 10 );
-        var materialBord4 = new THREE.MeshPhongMaterial( { map: textureWood} );
-        var bord4 = new THREE.Mesh( geometryBord4, materialBord4 );
-        bord4.position.set(0, 100, 0);
-        scene.add( bord4 );
-        materials.push(materialBord4);
-        for (var i = 0, l = materials.length; i < l; i++) {
-            materials[i].needsUpdate = true
-        }
 
 
 /////////////////////////////////////////// Lights
