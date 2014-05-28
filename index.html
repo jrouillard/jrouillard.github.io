@@ -18,7 +18,7 @@
 <script type="text/javascript">
 
 
-    var renderer, scene, camera, projector, mesh, objects = [], theta=0, phi=0, radius = 300, spriteList = [], foretList = [], materials = [], lightList = [], frameClock = new THREE.Clock();
+    var renderer, scene, camera, projector, mesh, objects = [], theta=0, phi=0, radius = 300, spriteList = [], foretList = [], materials = [], lightList = [], flags = [], frameClock = new THREE.Clock();
     var particleCount = 100;
     var particleSystem;
     var champ1;
@@ -44,13 +44,19 @@
     var waterNormals;
 
 
-    pins = [ 0,1,2,3,4,5,6,7,8,9, 10,11,12,13,14,15,16,17,18,19, 20,21,22,23,24,25,26,27,28,29, 30 ]; // classic 2 pins
+    var pins = [ 0,1,2,3,4,5,6,7,8,9, 10,11,12,13,14,15,16,17,18,19, 20,21,22,23,24,25,26,27,28,29, 30 ]; // classic 2 pins
 
 
     var container, stats;
 
     var clothGeometry;
     var object, arrow;
+
+
+
+    function Minimap(flagTeamRed, flagTeamBlue, logoTeamBlue, logoTeamRed, heightmap, groundTexture, borderTexture) {
+
+    }
 
     ////////////////////////// classe Sprite
     function Sprite(x, y, z, w, h, img){
@@ -96,6 +102,59 @@
     }
 
     SpriteBatiment.prototype = new Sprite()
+
+
+
+
+
+  ////////////////////////// classe flag
+    function Flag(restDistance, xSegs, ySegs, x, y, z, img, imgTop, plank){
+        this.parent = new THREE.Object3D();
+        this.cloth = new Cloth(xSegs, ySegs, plank, plane(restDistance  * xSegs, restDistance * 4 * ySegs), restDistance) 
+        this.random =  Math.random() * 700647948;
+        var clothTexture = THREE.ImageUtils.loadTexture( img );
+        var clothTop = THREE.ImageUtils.loadTexture( imgTop );
+
+        clothTexture.magFilter = THREE.NearestFilter
+        clothTexture.minFilter = THREE.NearestFilter
+        clothTexture.wrapS = clothTexture.wrapT = THREE.RepeatWrapping;
+        clothTexture.anisotropy = 16;
+
+        var geometrytop = new THREE.PlaneGeometry( 90, 4 );
+        var materialtop = new THREE.MeshPhongMaterial(({ map : clothTop}) );
+        this.top = new THREE.Mesh( geometrytop, materialtop );
+        this.top.rotation.z = Math.PI/2 
+        this.parent.position.set( x, y, z+60 );
+
+        this.top.position.set( 0, 0, 0 );
+
+        var clothMaterial = new THREE.MeshPhongMaterial( { alphaTest: 0.5, ambient: 0xffffff, color: 0xffffff, specular: 0x030303, emissive: 0x111111, shininess: 10, map: clothTexture, side: THREE.DoubleSide } );
+
+        // cloth geometry
+        this.clothGeometry = new THREE.ParametricGeometry( this.cloth.clothFunction, this.cloth.w, this.cloth.h );
+        // console.log(clothGeometry.vertices)
+        this.clothGeometry.dynamic = true;
+        this.clothGeometry.computeFaceNormals();
+
+        this.object = new THREE.Mesh( this.clothGeometry, clothMaterial );
+        this.object.position.set( 2.15, 0.1, -60 );
+        this.object.rotation.y = 3 * Math.PI/2
+        this.object.rotation.x = Math.PI/2 
+        this.parent.add(this.object)
+        this.parent.add(this.top)
+        scene.add(this.parent)
+        //texture
+    }
+
+
+    Flag.prototype.simulate = function(time) {
+        simulate(time, this)
+    }
+
+
+    Flag.prototype.rotate = function(angle) {
+        this.parent.rotation.z += angle 
+    }
 
 
 
@@ -429,29 +488,79 @@
 
 
 //////////////////////////////////////////// flag
+        var flagRed1 = new Flag(3, 30, 10, 100, 0, -52.4, 'img/fnatic-flag.png', 'img/topflagRed.png', function(pos) {
+            if (pos.z > 0.1 && pos.y > 41) {
+                pos.z = 0.1
+                console.log()
+            }
+            return pos.z
+        })
+        var flagRed2 = new Flag(3, 30, 10, 0, 100, -54.9, 'img/fnatic-flag.png', 'img/topflagRed.png', function(pos) {
+            if (pos.z > 0.1 && pos.y > 41) {
+                pos.z = 0.1
+                console.log()
+            }
+            return pos.z
+        })
 
-        var clothTexture = THREE.ImageUtils.loadTexture( 'img/fnatic-flag.png' );
+        var flagBlue1 = new Flag(3, 30, 10, -100, 0, -52.4, 'img/c9-flag.png', 'img/topflagBlue.png', function(pos) {
+            if (pos.z > 0.1 && pos.y > 41) {
+                pos.z = 0.1
+                console.log()
+            }
+            return pos.z
+        })
 
-        clothTexture.magFilter = THREE.NearestFilter
-        clothTexture.minFilter = THREE.NearestFilter
-        clothTexture.wrapS = clothTexture.wrapT = THREE.RepeatWrapping;
-        clothTexture.anisotropy = 16;
+        var flagBlue2 = new Flag(3, 30, 10, 0, -100, -54.9, 'img/c9-flag.png', 'img/topflagBlue.png', function(pos) {
+            if (pos.z > 0.1 && pos.y > 41) {
+                pos.z = 0.1
+                console.log()
+            }
+            return pos.z
+        })
+        flagRed2.rotate( Math.PI )
+        flagRed2.rotate( 3*Math.PI/2 )
+        flagBlue1.rotate( Math.PI )
+        flagBlue2.rotate( 3*Math.PI/2 )
+        flags.push(flagRed1,flagRed2, flagBlue1, flagBlue2);
+        // var clothTexture = THREE.ImageUtils.loadTexture( 'img/fnatic-flag.png' );
+        // var clothTop = THREE.ImageUtils.loadTexture( 'img/topflag.png' );
 
-        var clothMaterial = new THREE.MeshPhongMaterial( { alphaTest: 0.5, ambient: 0xffffff, color: 0xffffff, specular: 0x030303, emissive: 0x111111, shininess: 10, map: clothTexture, side: THREE.DoubleSide } );
+        // clothTexture.magFilter = THREE.NearestFilter
+        // clothTexture.minFilter = THREE.NearestFilter
+        // clothTexture.wrapS = clothTexture.wrapT = THREE.RepeatWrapping;
+        // clothTexture.anisotropy = 16;
 
-        // cloth geometry
-        clothGeometry = new THREE.ParametricGeometry( clothFunction, cloth.w, cloth.h );
-        // console.log(clothGeometry.vertices)
-        clothGeometry.dynamic = true;
-        clothGeometry.computeFaceNormals();
+        // var geometrytop = new THREE.PlaneGeometry( 90, 4 );
+        // var materialtop = new THREE.MeshPhongMaterial(({ map : clothTop}) );
+        // var topflag = new THREE.Mesh( geometrytop, materialtop );
+        // topflag.rotation.z = Math.PI/2 
+        // topflag.position.set( 100, 0.1, 7.6 );
+        // scene.add( topflag );
+        // var topflag2 = new THREE.Mesh( geometrytop, materialtop );
+        // topflag2.position.set( 0, 100.1, 5.1 );
+        // scene.add( topflag2 );
 
-        // cloth mesh
+        // var clothMaterial = new THREE.MeshPhongMaterial( { alphaTest: 0.5, ambient: 0xffffff, color: 0xffffff, specular: 0x030303, emissive: 0x111111, shininess: 10, map: clothTexture, side: THREE.DoubleSide } );
 
-        object = new THREE.Mesh( clothGeometry, clothMaterial );
-        object.position.set( -102, 0, -52.5 );
-        object.rotation.y = 3 * Math.PI/2
-        object.rotation.x = Math.PI/2 
-        scene.add( object );
+        // // cloth geometry
+        // clothGeometry = new THREE.ParametricGeometry( clothFunction, cloth.w, cloth.h );
+        // // console.log(clothGeometry.vertices)
+        // clothGeometry.dynamic = true;
+        // clothGeometry.computeFaceNormals();
+
+        // // cloth mesh
+
+        // object = new THREE.Mesh( clothGeometry, clothMaterial );
+        // object.position.set( 102.15, 0, -52.4 );
+        // object.rotation.y = 3 * Math.PI/2
+        // object.rotation.x = Math.PI/2 
+        // scene.add( object );
+
+        // object2 = new THREE.Mesh( clothGeometry, clothMaterial );
+        // object2.position.set( 0, 102.25, -55 );
+        // object2.rotation.x = Math.PI/2 
+        // scene.add( object2 );
 
 
 
@@ -481,11 +590,11 @@
             textureWidth: 512, 
             textureHeight: 512,
             waterNormals: waterNormals,
-            alpha:  0.6,
+            alpha:  0.5,
             sunDirection: directionalLight.position.normalize(),
             sunColor: 0xff5500,
             waterColor: 0x001e0f,
-            distortionScale: 20.0,
+            distortionScale: 10.0,
         } );
 
 
@@ -523,7 +632,7 @@
         textureSol.magFilter = THREE.NearestFilter
         textureSol.minFilter = THREE.NearestFilter
 
-        material = new THREE.MeshLambertMaterial( { map: textureSol, overdraw: true } );
+        material = new THREE.MeshLambertMaterial( { map: textureSol, overdraw: true,  side: THREE.DoubleSide } );
         materials.push(material)
         var texturelogo1 = new THREE.MeshLambertMaterial( { map: THREE.ImageUtils.loadTexture('img/logo1.png' ),transparent: true, opacity : 0.8} );
         var texturelogo2 = new THREE.MeshLambertMaterial( { map: THREE.ImageUtils.loadTexture('img/logo2.png' ),transparent: true, opacity : 0.8} );
@@ -699,31 +808,38 @@
         if (champ1.mesh.position.x < -80 && champ1.mesh.position.y < -80) offset = {x: 0.5,y: 0.5, z: 0}
 
         champ1.move(offset)
+
         var time = Date.now();
+        for (var j = flags.length - 1; j >= 0; j--) {
+            if (typeof flags[j] != 'undefined') {
 
-        windStrength = Math.cos( time / 7000 ) *2;
-        windForce.set( Math.sin( time / 2000 ), Math.cos( time / 3000 ), Math.sin( time / 1000 ) ).normalize().multiplyScalar( windStrength );
+                windStrength = Math.cos( time / 7000 ) *2;
+                windForce.set( Math.sin( time / 2000 + flags[j].random  ), Math.cos( time / 3000 + flags[j].random  ), Math.sin( time / 1000 + flags[j].random ) ).normalize().multiplyScalar( windStrength );
 
 
-        simulate(time);
-        water.material.uniforms.time.value += 1.0 / 60.0;
-        water.render()
+                flags[j].simulate(time);
+                water.material.uniforms.time.value += 1.0 / 60.0;
+                water.render()
 
-        var timer = Date.now() * 0.0002;
+                var timer = Date.now() * 0.0002;
 
-        var p = cloth.particles;
-        // console.log(p)
+                var p = flags[j].cloth.particles;
+                // console.log(p)
 
-        for ( var i = 0, il = p.length; i < il; i ++ ) {
-            clothGeometry.vertices[i].copy(p[ i ].position);
+                for ( var i = 0, il = p.length; i < il; i ++ ) {
+                    flags[j].clothGeometry.vertices[i].copy(p[ i ].position);
 
-        }
+                }
 
-        clothGeometry.computeFaceNormals();
-        clothGeometry.computeVertexNormals();
+                flags[j].clothGeometry.computeFaceNormals();
+                flags[j].clothGeometry.computeVertexNormals();
 
-        clothGeometry.normalsNeedUpdate = true;
-        clothGeometry.verticesNeedUpdate = true;
+                flags[j].clothGeometry.normalsNeedUpdate = true;
+                flags[j].clothGeometry.verticesNeedUpdate = true;
+            }
+
+        };
+
 
         /*camera.position.x = 300 * Math.cos( theta *Math.PI/180);
         camera.position.y = 300 * Math.sin( theta *Math.PI/180);
@@ -795,10 +911,8 @@
         fixWhich(event);
         if(event.which == 3){
             rightMouseDown = true;
-            console.log("NOT");
         }
         if(event.which == 1){
-            console.log("TRUE");
             mouseDown = true;
         } 
         lastMousePosition.x = event.clientX;
@@ -816,8 +930,8 @@
         // foretList.push({x:parseInt(intersects[0].point.x.toFixed() - 7), y:parseInt(intersects[0].point.y.toFixed() -3)})
         // scene.add(spriteList[spriteList.length-1].mesh)
         // console.log( JSON.stringify(foretList));
-            console.log('x: ' + intersects[0].point.x)
-            console.log('y: ' + intersects[0].point.y)
+            // console.log('x: ' + intersects[0].point.x)
+            // console.log('y: ' + intersects[0].point.y)
         // for (var i = 0, l = map.vertices.length; i < l; i++) {
         //   if (map.vertices[i].x + 5 < intersects[0].point.x +10 && map.vertices[i].x + 5> intersects[0].point.x -10 &&
         //     map.vertices[i].y+ 2 < intersects[0].point.y +10 && map.vertices[i].y+ 2 > intersects[0].point.y -10) {
