@@ -75,14 +75,14 @@
         var flag = new Flag(3, 30, 10, x, y, z - 59.9 + height / 2, textures.flag, textures.top, functionPlank)
         flags.push(flag)
         flag.rotate(rotation + Math.PI / 2)
-
+        this.flag = flag;
         this.parent.add(flag.parent)
-        console.log(flag)
-
     }
 
 
-    function Minimap( heightmap, textures, buildingsPositions, lightsPositions ) {
+    function Minimap(heightmap, textures, buildingsPositions, treePositions, lightsPositions ) {
+
+
 
         // attributes :
         this.parent = new THREE.Object3D();
@@ -93,29 +93,11 @@
         this.material;              // ground texture
         this.mesh;                  // ground mesh
         this.buildings;             // buildings
+        this.spriteList = [];
+        this.flags = [];
 
+        var heightHere = 0
 
-        // CADRE MINIMAP
-       
-        this.bordure  = new Border( -100, 0, 0, {"plank" : textures.plank, "flag" : textures.flagBlue, "top" : textures.topBlue}, Math.PI / 2 , 15) 
-        this.bordure2 = new Border( 100, 0, 0,  {"plank" : textures.plank, "flag" : textures.flagRed, "top" : textures.topRed}, 3 * Math.PI / 2 , 15) 
-        this.bordure3 = new Border( 0, 100, 0,  {"plank" : textures.plank, "flag" : textures.flagRed, "top" : textures.topRed}, 0 ,10 ) 
-        this.bordure4 = new Border( 0, -100, 0, {"plank" : textures.plank, "flag" : textures.flagBlue, "top" : textures.topBlue}, Math.PI , 10) 
-        this.parent.add( this.bordure );
-        this.parent.add( this.bordure2 );
-        this.parent.add( this.bordure3 );
-        this.parent.add( this.bordure4 );
-
-        // LIGHTS MINIMAP
-        var lights = []
-        for (var i = 0; i < lightsPositions.length; ++i) {
-
-            heightHere =  getHeight(lightsPositions[i].x, lightsPositions[i].y)
-            lights.push(new THREE.PointLight( 0xFF7722, 3, 15 ));
-            lights[i].position.set(  lightsPositions[i].x,  lightsPositions[i].y,  lightsPositions[i].z );
-            this.parent.add(lights[i])
-
-        }
 
 
 
@@ -130,22 +112,140 @@
         this.material = new THREE.MeshLambertMaterial( { map: groundTexture, overdraw: true,  side: THREE.DoubleSide } );
         materials.push(this.material)
         var texturelogo1 = new THREE.MeshLambertMaterial( { map: THREE.ImageUtils.loadTexture( textures.logo1 ),transparent: true, opacity : 0.8} );
-        var texturelogo2 = new THREE.MeshLambertMaterial( { map: THREE.ImageUtils.loadTexture( textures.logo1 ),transparent: true, opacity : 0.8} );
+        var texturelogo2 = new THREE.MeshLambertMaterial( { map: THREE.ImageUtils.loadTexture( textures.logo2 ),transparent: true, opacity : 0.8} );
+
+
+        var map = new THREE.PlaneGeometry( 200, 200, 20, 20 );
+        map.vertices = heightmap;
         this.mesh = new THREE.Mesh( map, this.material );
-        objects.push(this.mesh)
+        objects.push(this.mesh);
+        this.map = map;
 
         var meshLogo1 = new THREE.Mesh( logo1, texturelogo1 );
-        meshLogo1.position.set(60, 66, 2.1)
-        meshLogo1.rotation.z = -0.8
+        meshLogo1.position.set(60, 66, 2.1);
+        meshLogo1.rotation.z = -0.8;
         var meshLogo2 = new THREE.Mesh( logo2, texturelogo2 );
-        meshLogo2.position.set(-62, -62, 2.1)
-        meshLogo2.rotation.z = 2.42
+        meshLogo2.position.set(-62, -62, 2.1);
+        meshLogo2.rotation.z = 2.42;
 
         this.parent.add( this.mesh );
         this.parent.add( meshLogo1 );
         this.parent.add( meshLogo2 );
 
-        scene.add(this.parent);
+        // LIGHTS MINIMAP
+
+        var directionalLight = new THREE.DirectionalLight( 0xff9955, 1 );
+        directionalLight.position.set( - 1, 0.4, - 1 );
+
+        var lights = []
+        for (var i = 0; i < lightsPositions.length; ++i) {
+
+            heightHere =  getNearestVertice(lightsPositions[i].x, lightsPositions[i].y, this.mesh)
+            lights.push(new THREE.PointLight( 0xFF7722, 3, 15 ));
+            lights[i].position.set(  lightsPositions[i].x,  lightsPositions[i].y,  lightsPositions[i].z );
+            this.parent.add(lights[i])
+
+        }
+        this.parent.add( directionalLight );
+
+
+        function getNearestVertice(x, y) {
+                for (var i = 0, l = map.vertices.length; i < l; i++) {
+                    if (map.vertices[i].x + 5 < x +8 && map.vertices[i].x + 5> x -8 &&
+                        map.vertices[i].y+ 2 < y +8 && map.vertices[i].y+ 2 > y -8) {
+                        return map.vertices[i].z + 5;
+                }
+            }
+            return 5;
+        }
+
+        // CADRE MINIMAP
+       
+        this.bordure  = new Border( 100, 0, 0,  {"plank" : textures.plank, "flag" : textures.flagRed, "top" : textures.topRed}, 3 * Math.PI / 2 , 15) 
+        this.bordure2 = new Border( 0, 100, 0,  {"plank" : textures.plank, "flag" : textures.flagRed, "top" : textures.topRed}, 0 ,10 ) 
+        this.bordure3 = new Border( -100, 0, 0, {"plank" : textures.plank, "flag" : textures.flagBlue, "top" : textures.topBlue}, Math.PI / 2 , 15) 
+        this.bordure4 = new Border( 0, -100, 0, {"plank" : textures.plank, "flag" : textures.flagBlue, "top" : textures.topBlue}, Math.PI , 10) 
+        this.parent.add( this.bordure.parent );
+        this.parent.add( this.bordure2.parent );
+        this.parent.add( this.bordure3.parent );
+        this.parent.add( this.bordure4.parent );
+
+        this.flags.push(this.bordure.flag)
+        this.flags.push(this.bordure2.flag)
+        this.flags.push(this.bordure3.flag)
+        this.flags.push(this.bordure4.flag)
+
+
+
+        // WATER MINIMAP
+
+        var waterNormals = new THREE.ImageUtils.loadTexture( 'img/waternormals.jpg' );
+        waterNormals.wrapS = waterNormals.wrapT = THREE.RepeatWrapping; 
+
+        this.water = new THREE.Water( renderer, camera, scene, {
+            textureWidth: 512, 
+            textureHeight: 512,
+            waterNormals: waterNormals,
+            alpha:  0.5,
+            sunDirection: directionalLight.position.normalize(),
+            sunColor: 0xff5500,
+            waterColor: 0x001e0f,
+            distortionScale: 10.0,
+        } );
+
+
+        var mirrorMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry( parameters.width * 200, parameters.height * 30, 50, 50 ), 
+            this.water.material
+        );
+        
+        mirrorMesh.position.z = -6
+        mirrorMesh.add( this.water );
+        mirrorMesh.rotation.z = - Math.PI * 0.25;
+
+        this.parent.add( mirrorMesh );
+
+
+        // BUILDINGS MINIMAP
+
+        for (var i = 0; i < buildingsPositions.redTowers.length; ++i) {
+
+            heightHere =  getNearestVertice(buildingsPositions.redTowers[i].x, buildingsPositions.redTowers[i].y)
+            this.spriteList.push(new SpriteBatiment(buildingsPositions.redTowers[i].x, buildingsPositions.redTowers[i].y, heightHere + 0, 6, 10, textures.redTower, 0xff0088))
+        }
+        for (var i = 0; i < buildingsPositions.blueTowers.length; ++i) {
+            heightHere =  getNearestVertice(buildingsPositions.blueTowers[i].x, buildingsPositions.blueTowers[i].y)
+            this.spriteList.push(new SpriteBatiment(buildingsPositions.blueTowers[i].x, buildingsPositions.blueTowers[i].y, heightHere + 0, 6, 10, textures.blueTower, 0x0088ff))
+        }
+
+
+        this.spriteList.push(new Sprite(-75, -50, getNearestVertice(-75, -50)-4, 6, 4, textures.blueInhib))
+        this.spriteList.push(new Sprite(-51, -51, getNearestVertice(-51, -51)-4, 6, 4, textures.blueInhib))
+        this.spriteList.push(new Sprite(-45, -78, getNearestVertice(-45, -78)-4, 6, 4, textures.blueInhib))
+
+        this.spriteList.push(new Sprite(48, 53, getNearestVertice(48, 53)-4, 6, 4, textures.redInhib))
+        this.spriteList.push(new Sprite(70, 50, getNearestVertice(70, 50)-4, 6, 4, textures.redInhib))
+        this.spriteList.push(new Sprite(45, 78, getNearestVertice(45, 78)-4, 6, 4, textures.redInhib))
+
+        this.spriteList.push(new Sprite(-65, -70, getNearestVertice(-65, -70)-2, 8, 7, textures.blueNexus))
+        this.spriteList.push(new Sprite(69, 73, getNearestVertice(69, 73)-2, 8, 7,  textures.redNexus))
+
+
+        // JUNGLE MINIMAP
+
+        for (var j = 0; j < treePositions.length; ++j) {
+            heightHere =  getNearestVertice(treePositions[j].x, treePositions[j].y)
+            this.spriteList.push(new Sprite(treePositions[j].x, treePositions[j].y, heightHere, Math.random() * 3 + 2, Math.random()* 4 + 5, textures.tree))
+        }
+
+
+
+
+        for (var i = this.spriteList.length - 1; i >= 0; i--) {
+            this.parent.add(this.spriteList[i].mesh);
+            this.parent.add(this.spriteList[i].light);
+        };
+
     }
 
     ////////////////////////// classe Sprite
@@ -210,13 +310,18 @@
         clothTexture.wrapS = clothTexture.wrapT = THREE.RepeatWrapping;
         clothTexture.anisotropy = 16;
 
-        var geometrytop = new THREE.PlaneGeometry( 90, 4 );
-        var materialtop = new THREE.MeshPhongMaterial(({ map : clothTop}) );
+        var geometrytop = new THREE.PlaneGeometry( 90, 4.45 );
+        var geometrybehind = new THREE.PlaneGeometry( 90, 15 );
+        var materialtop = new THREE.MeshPhongMaterial(({ map : clothTop, side: THREE.DoubleSide}) );
         this.top = new THREE.Mesh( geometrytop, materialtop );
+        this.behind = new THREE.Mesh( geometrybehind, materialtop );
         this.top.rotation.z = Math.PI/2 
         this.parent.position.set( x, y, z+60 );
 
         this.top.position.set( 0, 0, 0 );
+        this.behind.position.set( -2.2, 0, -7.5 );
+        this.behind.rotation.z = Math.PI/2;
+        this.behind.rotation.y = Math.PI/2;
 
         var clothMaterial = new THREE.MeshPhongMaterial( { alphaTest: 0.5, ambient: 0xffffff, color: 0xffffff, specular: 0x030303, emissive: 0x111111, shininess: 10, map: clothTexture, side: THREE.DoubleSide } );
 
@@ -232,6 +337,7 @@
         this.object.rotation.x = Math.PI/2 
         this.parent.add(this.object)
         this.parent.add(this.top)
+        this.parent.add(this.behind)
         // scene.add(this.parent)
         //texture
     }
@@ -413,145 +519,56 @@
 
         var redTowerInit =
         [
-        {
-            x:17,
-            y:17,
-            texture: 'img/redtower.png'
-        },
-        {
-            x:28,
-            y:38,
-            texture: 'img/redtower.png'
-        },
-        {
-            x:38,
-            y:80,
-            texture: 'img/redtower.png'
-        },
-        {
-            x:5,
-            y:80,
-            texture: 'img/redtower.png'
-        },
-        {
-            x:42,
-            y:50,
-            texture: 'img/redtower.png'
-        },
-        {
-            x:72,
-            y:45,
-            texture: 'img/redtower.png'
-        },
-        {
-            x:-40,
-            y:80,
-            texture: 'img/redtower.png'
-        },
-        {
-            x:70,
-            y:10,
-            texture: 'img/redtower.png'
-        },
-        {
-            x:75,
-            y:-37,
-            texture: 'img/redtower.png'
-        },
-        {
-            x:-40,
-            y:80,
-            texture: 'img/redtower.png'
-        },
-        {"x":67,"y":66, texture: 'img/redtower.png'},
-        {"x":62,"y":72, texture: 'img/redtower.png'}
+        { x:17, y:17},
+        { x:28, y:38},
+        { x:38, y:80},
+        { x:5, y:80},
+        { x:42, y:50},
+        { x:72, y:45},
+        { x:-40, y:80},
+        { x:70, y:10},
+        { x:75, y:-37},
+        { x:-40, y:80},
+        {"x":67,"y":66},
+        {"x":62,"y":72}
         ];
         var blueTowerInit =
         [
 
-        {
-            x:-17,
-            y:-10,
-            texture: 'img/bluetower.png'
-        },
-        {
-            x:-28,
-            y:-30,
-            texture: 'img/bluetower.png'
-        },
-        {
-            x:-38,
-            y:-80,
-            texture: 'img/bluetower.png'
-        },
-        {
-            x:-5,
-            y:-80,
-            texture: 'img/bluetower.png'
-        },
-        {
-            x:-42,
-            y:-50,
-            texture: 'img/bluetower.png'
-        },
-        {
-            x:-72,
-            y:-45,
-            texture: 'img/bluetower.png'
-        },
-        {
-            x:40,
-            y:-80,
-            texture: 'img/bluetower.png'
-        },
-        {
-            x:-70,
-            y:-10,
-            texture: 'img/bluetower.png'
-        },
-        {
-            x:-75,
-            y:37,
-            texture: 'img/bluetower.png'
-        },
-        {
-            x:40,
-            y:-80,
-            texture: 'img/bluetower.png'
-        },{
-            "x":-55,
-            "y":-69,
-            texture: 'img/bluetower.png'
-        },
-        {
-            "x":-61,
-            "y":-62,
-            texture: 'img/bluetower.png'
-        }
+        { x:-17, y:-10},
+        { x:-28, y:-30},
+        { x:-38, y:-80},
+        { x:-5, y:-80},
+        { x:-42, y:-50},
+        { x:-72, y:-45},
+        { x:40, y:-80},
+        { x:-70, y:-10},
+        { x:-75, y:37},
+        { x:40, y:-80},
+        { "x":-55, "y":-69},
+        { "x":-61, "y":-62}
         ];
 
 
-        map = new THREE.PlaneGeometry( 200, 200, 20, 20 );
-        map.vertices = arrayMap
-        var heightHere = 0
-        for (var i = 0; i < redTowerInit.length; ++i) {
-
-            heightHere =  getHeight(redTowerInit[i].x, redTowerInit[i].y)
-            spriteList.push(new SpriteBatiment(redTowerInit[i].x, redTowerInit[i].y, heightHere + 0, 6, 10, redTowerInit[i].texture, 0xff0088))
+        var textures = {
+            'blueTower' : 'img/bluetower.png',
+            'redTower' : 'img/redtower.png',
+            'redInhib' : 'img/redInhib.png',
+            'blueInhib' : 'img/blueInhib.png',
+            'redNexus' : 'img/redNexus.png',
+            'blueNexus' : 'img/blueNexus.png',
+            'tree' : 'img/arbre.png',
+            'flagRed' : 'img/fnatic-flag.png',
+            'topRed' : 'img/topflagRed.png',
+            'flagBlue' : 'img/c9-flag.png',
+            'topBlue' : 'img/topflagBlue.png',
+            'logo1' : 'img/logo1.png',
+            'logo2' : 'img/logo2.png',
+            'plank' : 'img/wood.png',
+            'groundTexture' : 'img/centred.png',
         }
-        for (var i = 0; i < blueTowerInit.length; ++i) {
-            heightHere =  getHeight(blueTowerInit[i].x, blueTowerInit[i].y)
-            spriteList.push(new SpriteBatiment(blueTowerInit[i].x, blueTowerInit[i].y, heightHere + 0, 6, 10, 'img/bluetower.png', 0x0088ff))
-        }
 
 
-
-
-        spriteList.push(new Sprite(-65, -70, getHeight(-65, -70)-2, 9, 8, 'img/blueNexus.png'))
-        spriteList.push(new Sprite(69, 73, getHeight(69, 73)-2, 9, 8, 'img/redNexus.png'))
-
-
-        spriteList.push(new Sprite(69, 73, getHeight(69, 73)-2, 9, 8, 'img/redNexus.png'))
 
 
         // on initialise le moteur de rendu
@@ -573,73 +590,17 @@
 
         scene.add(camera);
 
-        // on créé un  cube au quel on définie un matériau puis on l’ajoute à la scène 
+
+        var minimap = new Minimap(arrayMap, textures, {'blueTowers' : blueTowerInit, 'redTowers' : redTowerInit}, forest, neutralLights )
+        scene.add(minimap.parent)
+        map = minimap
 
 
 
-//////////////////////////////////////////// flag
- 
 
-        var bordure = new Border( -100, 0, 0, {"plank" : "img/wood.png", "flag" : 'img/c9-flag.png', "top" : 'img/topflagBlue.png'}, Math.PI / 2 , 15) 
-        var bordure2 = new Border( 100, 0, 0, {"plank" : "img/wood.png", "flag" : 'img/fnatic-flag.png', "top" : 'img/topflagRed.png'}, 3 * Math.PI / 2 , 15) 
-        var bordure3 = new Border( 0, 100, 0, {"plank" : "img/wood.png", "flag" : 'img/fnatic-flag.png', "top" : 'img/topflagRed.png'}, 0 ,10 ) 
-        var bordure4 = new Border( 0, -100, 0, {"plank" : "img/wood.png", "flag" : 'img/c9-flag.png', "top" : 'img/topflagBlue.png'}, Math.PI , 10) 
-        scene.add(bordure.parent)
-        scene.add(bordure2.parent)
-        scene.add(bordure3.parent)
-        scene.add(bordure4.parent)
-
-
-
-/////////////////////////////////////////// forest
-
-        for (var j = 0; j < forest.length; ++j) {
-            heightHere =  getHeight(forest[j].x, forest[j].y)
-            spriteList.push(new Sprite(forest[j].x, forest[j].y, heightHere, Math.random() * 3 + 2, Math.random()* 4 + 5, 'img/arbre.png'))
-        }
-
-
-
-/////////////////////////////////////////// Water
-        // directionalLight = new THREE.DirectionalLight( 0xff9955, 1 );
-        // directionalLight.position.set( 0, 0, 30 );
-        // directionalLight.rotation.z = -Math.PI/2
-        // scene.add( directionalLight );
-
-        directionalLight = new THREE.DirectionalLight( 0xff9955, 1 );
-        directionalLight.position.set( - 1, 0.4, - 1 );
-        scene.add( directionalLight );
-
-        waterNormals = new THREE.ImageUtils.loadTexture( 'img/waternormals.jpg' );
-        waterNormals.wrapS = waterNormals.wrapT = THREE.RepeatWrapping; 
-
-        water = new THREE.Water( renderer, camera, scene, {
-            textureWidth: 512, 
-            textureHeight: 512,
-            waterNormals: waterNormals,
-            alpha:  0.5,
-            sunDirection: directionalLight.position.normalize(),
-            sunColor: 0xff5500,
-            waterColor: 0x001e0f,
-            distortionScale: 10.0,
-        } );
-
-
-        mirrorMesh = new THREE.Mesh(
-            new THREE.PlaneGeometry( parameters.width * 200, parameters.height * 30, 50, 50 ), 
-            water.material
-        );
-        
-        mirrorMesh.position.z = -6
-        mirrorMesh.add( water );
-        mirrorMesh.rotation.z = - Math.PI * 0.25;
-        // mirrorMesh.rotation.x = - Math.PI * 0.5;
-        scene.add( mirrorMesh );
-
-/////////////////////////////////////////// neutrals 
+// /////////////////////////////////////////// neutrals 
         spriteList.push(new SpriteAnimated(28, -35, -1, 10, 15, 'img/drake.png', 0x66ff00))
         spriteList.push(new SpriteAnimated(-29, 42, 2,8, 15, 'img/nashor.png', 0xff00ff))
-
 
 ////////////////////////////////////////// test hero
         champ1 = new SpriteHero(-60, -60, 5, 7, 7, 'img/jayce.png', 0x66ff00, [])
@@ -651,39 +612,9 @@
             scene.add(spriteList[i].light)
         }
 
-/////////////////////////////////////////// horizontal plan: map and logos 
-        var logo1 = new THREE.PlaneGeometry( 20, 20 );
-        var logo2 = new THREE.PlaneGeometry( 20, 20 );
-        var textureSol = THREE.ImageUtils.loadTexture( 'img/centred.png' )
-
-        textureSol.magFilter = THREE.NearestFilter
-        textureSol.minFilter = THREE.NearestFilter
-
-        material = new THREE.MeshLambertMaterial( { map: textureSol, overdraw: true,  side: THREE.DoubleSide } );
-        materials.push(material)
-        var texturelogo1 = new THREE.MeshLambertMaterial( { map: THREE.ImageUtils.loadTexture('img/logo1.png' ),transparent: true, opacity : 0.8} );
-        var texturelogo2 = new THREE.MeshLambertMaterial( { map: THREE.ImageUtils.loadTexture('img/logo2.png' ),transparent: true, opacity : 0.8} );
-        mesh = new THREE.Mesh( map, material );
-        objects.push(mesh)
-        meshLogo1 = new THREE.Mesh( logo1, texturelogo1 );
-        meshLogo1.position.set(60, 66, 2.1)
-        meshLogo1.rotation.z = -0.8
-        meshLogo2 = new THREE.Mesh( logo2, texturelogo2 );
-        meshLogo2.position.set(-62, -62, 2.1)
-        meshLogo2.rotation.z = 2.42
-        scene.add( mesh );
-        scene.add( meshLogo1 );
-        scene.add( meshLogo2 );
 
 
 
-////////////////////////////////////////// Test
-        var geometry = new THREE.CubeGeometry( 1, 25, 2 );
-        var materialCube = new THREE.MeshLambertMaterial( {color: 0x553333} );
-
-        var cube = new THREE.Mesh( geometry, materialCube );
-        cube.position.set(30,60, 2);
-        // scene.add( cube );
 
 
 ///////////////////////////////////////// Spark particles
@@ -721,15 +652,6 @@
         var ambientLight = new THREE.AmbientLight(0xFFFFFF);
         scene.add(ambientLight);
 
-        for (var i = 0; i < neutralLights.length; ++i) {
-
-            heightHere =  getHeight(neutralLights[i].x, neutralLights[i].y)
-            var light = new THREE.PointLight( 0xFF7722, 3, 15 );
-            light.position.set(  neutralLights[i].x,  neutralLights[i].y,  neutralLights[i].z );
-            scene.add(light)
-
-
-        }
         var areaLight1 = new THREE.AreaLight( 0x00ff00, 10);
         areaLight1.position.set( 0.0001, 10.0001, 10.5001 );
         areaLight1.width = 10;
@@ -801,32 +723,32 @@
         champ1.move(offset)
 
         var time = Date.now();
-        for (var j = flags.length - 1; j >= 0; j--) {
-            if (typeof flags[j] != 'undefined') {
+        for (var j = map.flags.length - 1; j >= 0; j--) {
+            if (typeof map.flags[j] != 'undefined') {
 
                 windStrength = Math.cos( time / 7000 ) *2;
-                windForce.set( Math.sin( time / 2000 + flags[j].random  ), Math.cos( time / 3000 + flags[j].random  ), Math.sin( time / 1000 + flags[j].random ) ).normalize().multiplyScalar( windStrength );
+                windForce.set( Math.sin( time / 2000 + map.flags[j].random  ), Math.cos( time / 3000 + map.flags[j].random  ), Math.sin( time / 1000 + map.flags[j].random ) ).normalize().multiplyScalar( windStrength );
 
 
-                flags[j].simulate(time);
-                water.material.uniforms.time.value += 1.0 / 60.0;
-                water.render()
+                map.flags[j].simulate(time);
+                map.water.material.uniforms.time.value += 1.0 / 60.0;
+                map.water.render()
 
                 var timer = Date.now() * 0.0002;
 
-                var p = flags[j].cloth.particles;
+                var p = map.flags[j].cloth.particles;
                 // console.log(p)
 
                 for ( var i = 0, il = p.length; i < il; i ++ ) {
-                    flags[j].clothGeometry.vertices[i].copy(p[ i ].position);
+                    map.flags[j].clothGeometry.vertices[i].copy(p[ i ].position);
 
                 }
 
-                flags[j].clothGeometry.computeFaceNormals();
-                flags[j].clothGeometry.computeVertexNormals();
+                map.flags[j].clothGeometry.computeFaceNormals();
+                map.flags[j].clothGeometry.computeVertexNormals();
 
-                flags[j].clothGeometry.normalsNeedUpdate = true;
-                flags[j].clothGeometry.verticesNeedUpdate = true;
+                map.flags[j].clothGeometry.normalsNeedUpdate = true;
+                map.flags[j].clothGeometry.verticesNeedUpdate = true;
             }
 
         };
@@ -874,8 +796,8 @@
                 y: event.clientY - lastMousePosition.y
             }
 
-            lookAtVector.x -= offset.x/2.0;
-            lookAtVector.y += offset.y/2.0;
+            lookAtVector.y += offset.x/2.0;
+            lookAtVector.x += offset.y/2.0;
             lastMousePosition.x = event.clientX;
             lastMousePosition.y = event.clientY;
         }
@@ -921,8 +843,8 @@
         // foretList.push({x:parseInt(intersects[0].point.x.toFixed() - 7), y:parseInt(intersects[0].point.y.toFixed() -3)})
         // scene.add(spriteList[spriteList.length-1].mesh)
         // console.log( JSON.stringify(foretList));
-            // console.log('x: ' + intersects[0].point.x)
-            // console.log('y: ' + intersects[0].point.y)
+            console.log('x: ' + intersects[0].point.x)
+            console.log('y: ' + intersects[0].point.y)
         // for (var i = 0, l = map.vertices.length; i < l; i++) {
         //   if (map.vertices[i].x + 5 < intersects[0].point.x +10 && map.vertices[i].x + 5> intersects[0].point.x -10 &&
         //     map.vertices[i].y+ 2 < intersects[0].point.y +10 && map.vertices[i].y+ 2 > intersects[0].point.y -10) {
@@ -965,10 +887,10 @@
 
    
     function getHeight(x, y) {
-            for (var i = 0, l = map.vertices.length; i < l; i++) {
-                if (map.vertices[i].x + 5 < x +8 && map.vertices[i].x + 5> x -8 &&
-                    map.vertices[i].y+ 2 < y +8 && map.vertices[i].y+ 2 > y -8) {
-                    return map.vertices[i].z + 5;
+            for (var i = 0, l = map.map.vertices.length; i < l; i++) {
+                if (map.map.vertices[i].x + 5 < x +8 &&map.map.vertices[i].x + 5> x -8 &&
+                   map.map.vertices[i].y+ 2 < y +8 &&map.map.vertices[i].y+ 2 > y -8) {
+                    return map.map.vertices[i].z + 5;
             }
         }
         return 5;
