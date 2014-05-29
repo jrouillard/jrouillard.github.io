@@ -30,7 +30,6 @@
 
     var offset = {x: 0.5,y: 0.5, z: 0}
     var particles
-    var mirrorMesh
     var parameters = {
         width: 1,
         height: 1,
@@ -86,6 +85,9 @@
 
         // attributes :
         this.parent = new THREE.Object3D();
+        this.parentGround = new THREE.Object3D();
+        this.ready = false;
+        this.mapReady = false;
         this.bordure;                  //
         this.bordure2;                 // => borders
         this.bordure3;                 //
@@ -128,9 +130,9 @@
         meshLogo2.position.set(-62, -62, 2.1);
         meshLogo2.rotation.z = 2.42;
 
-        this.parent.add( this.mesh );
-        this.parent.add( meshLogo1 );
-        this.parent.add( meshLogo2 );
+        this.parentGround.add( this.mesh );
+        this.parentGround.add( meshLogo1 );
+        this.parentGround.add( meshLogo2 );
 
         // LIGHTS MINIMAP
 
@@ -194,17 +196,18 @@
         } );
 
 
-        var mirrorMesh = new THREE.Mesh(
+        this.mirrorMesh = new THREE.Mesh(
             new THREE.PlaneGeometry( parameters.width * 200, parameters.height * 30, 50, 50 ), 
             this.water.material
         );
         
-        mirrorMesh.position.z = -6
-        mirrorMesh.add( this.water );
-        mirrorMesh.rotation.z = - Math.PI * 0.25;
+        this.mirrorMesh.position.z = -6
+        this.mirrorMesh.add( this.water );
+        this.mirrorMesh.rotation.z = - Math.PI * 0.25;
 
-        this.parent.add( mirrorMesh );
+        this.parentGround.add( this.mirrorMesh );
 
+        this.parent.add( this.parentGround );
 
         // BUILDINGS MINIMAP
 
@@ -227,7 +230,7 @@
         this.spriteList.push(new Sprite(70, 50, getNearestVertice(70, 50)-4, 6, 4, textures.redInhib))
         this.spriteList.push(new Sprite(45, 78, getNearestVertice(45, 78)-4, 6, 4, textures.redInhib))
 
-        this.spriteList.push(new Sprite(-65, -70, getNearestVertice(-65, -70)-2, 8, 7, textures.blueNexus))
+        this.spriteList.push(new Sprite(-67, -72, getNearestVertice(-67, -72)-2, 8, 7, textures.blueNexus))
         this.spriteList.push(new Sprite(69, 73, getNearestVertice(69, 73)-2, 8, 7,  textures.redNexus))
 
 
@@ -248,6 +251,81 @@
 
     }
 
+    Minimap.prototype.create = function() {
+        this.parentGround.position.z = -500
+        this.bordure.parent.position.x = 500
+        this.bordure2.parent.position.y = 500
+        this.bordure3.parent.position.x = -500
+        this.bordure4.parent.position.y = -500
+
+        for (var i = this.spriteList.length - 1; i >= 0; i--) {
+            this.spriteList[i].mesh.scale.y = 0
+            this.spriteList[i].mesh.position.z -= 3
+        };
+    }
+
+
+    Minimap.prototype.simulate = function(time, elapsedTime) {
+        if (!this.ready) {
+                if (!this.mapReady) {
+                    this.parentGround.position.z += 2000 * elapsedTime
+                    this.bordure.parent.position.x -= 2000 * elapsedTime
+                    this.bordure2.parent.position.y -= 2000 * elapsedTime
+                    this.bordure3.parent.position.x += 2000 * elapsedTime
+                    this.bordure4.parent.position.y += 2000 * elapsedTime
+
+                    if (this.bordure.parent.position.x < 0 ) {
+                        this.parentGround.position.z = 0
+                        this.bordure.parent.position.x =  0
+                        this.bordure2.parent.position.y = 0
+                        this.bordure3.parent.position.x = 0
+                        this.bordure4.parent.position.y = 0
+                        this.mapReady = true;
+                    } 
+                } else {
+                    for (var i = this.spriteList.length - 1; i >= 0; i--) {
+                        this.spriteList[i].grow(elapsedTime);
+                    };
+                    if (this.spriteList[0].mesh.scale.y > this.spriteList[0].height) {
+                        this.spriteList[0].mesh.scale.y = this.spriteList[0].height;
+                        this.ready = true;
+                    }
+                }
+
+        }
+        for (var j = this.flags.length - 1; j >= 0; j--) {
+            if (typeof this.flags[j] != 'undefined') {
+
+                windStrength = Math.cos( time / 7000 ) *2;
+                windForce.set( Math.sin( time / 2000 + this.flags[j].random  ), Math.cos( time / 3000 + this.flags[j].random  ), Math.sin( time / 1000 + this.flags[j].random ) ).normalize().multiplyScalar( windStrength );
+
+
+                this.flags[j].simulate(time);
+
+                var timer = Date.now() * 0.0002;
+
+                var p = this.flags[j].cloth.particles;
+                // console.log(p)
+
+                for ( var i = 0, il = p.length; i < il; i ++ ) {
+                    this.flags[j].clothGeometry.vertices[i].copy(p[ i ].position);
+
+                }
+
+                this.flags[j].clothGeometry.computeFaceNormals();
+                this.flags[j].clothGeometry.computeVertexNormals();
+
+                this.flags[j].clothGeometry.normalsNeedUpdate = true;
+                this.flags[j].clothGeometry.verticesNeedUpdate = true;
+            }
+
+        };
+
+
+        this.water.material.uniforms.time.value += 1.0 / 60.0;
+        this.water.render()
+    }
+
     ////////////////////////// classe Sprite
     function Sprite(x, y, z, w, h, img){
         // objects.push( this.mesh );
@@ -264,7 +342,17 @@
         this.mesh = new THREE.Sprite( material );
         this.mesh.scale.set( w, h, 1 );
         this.mesh.position.set(x, y, z)
+        this.height = h
 
+    }
+    Sprite.prototype.update = function() {
+    }
+
+    Sprite.prototype.grow = function(elapsedTime) {
+        if (this.mesh.scale.y < this.height ) {
+            this.mesh.scale.y += elapsedTime *  10;
+            this.mesh.position.z += elapsedTime * 2
+        }
     }
 
 
@@ -288,8 +376,6 @@
     }
 
 
-    Sprite.prototype.update = function() {
-    }
 
     SpriteBatiment.prototype = new Sprite()
 
@@ -592,6 +678,7 @@
 
 
         var minimap = new Minimap(arrayMap, textures, {'blueTowers' : blueTowerInit, 'redTowers' : redTowerInit}, forest, neutralLights )
+        minimap.create()
         scene.add(minimap.parent)
         map = minimap
 
@@ -669,7 +756,7 @@
 		    document.attachEvent("on"+mousewheelevt, onDocumentMouseWheel)
 		else if (document.addEventListener) //WC3 browsers
 		    document.addEventListener(mousewheelevt, onDocumentMouseWheel, false)
-        // document.addEventListener( 'keydown', onKeyDocumentPress, false );
+        document.addEventListener( 'keydown', onKeyDocumentPress, false );
 
 
 
@@ -723,37 +810,9 @@
         champ1.move(offset)
 
         var time = Date.now();
-        for (var j = map.flags.length - 1; j >= 0; j--) {
-            if (typeof map.flags[j] != 'undefined') {
-
-                windStrength = Math.cos( time / 7000 ) *2;
-                windForce.set( Math.sin( time / 2000 + map.flags[j].random  ), Math.cos( time / 3000 + map.flags[j].random  ), Math.sin( time / 1000 + map.flags[j].random ) ).normalize().multiplyScalar( windStrength );
 
 
-                map.flags[j].simulate(time);
-                map.water.material.uniforms.time.value += 1.0 / 60.0;
-                map.water.render()
-
-                var timer = Date.now() * 0.0002;
-
-                var p = map.flags[j].cloth.particles;
-                // console.log(p)
-
-                for ( var i = 0, il = p.length; i < il; i ++ ) {
-                    map.flags[j].clothGeometry.vertices[i].copy(p[ i ].position);
-
-                }
-
-                map.flags[j].clothGeometry.computeFaceNormals();
-                map.flags[j].clothGeometry.computeVertexNormals();
-
-                map.flags[j].clothGeometry.normalsNeedUpdate = true;
-                map.flags[j].clothGeometry.verticesNeedUpdate = true;
-            }
-
-        };
-
-
+        map.simulate(time, elapsedTime);
         /*camera.position.x = 300 * Math.cos( theta *Math.PI/180);
         camera.position.y = 300 * Math.sin( theta *Math.PI/180);
         camera.position.z = 200;*/
@@ -774,7 +833,9 @@
 
     function onKeyDocumentPress(event) {
         event.preventDefault();   
-        console.log( JSON.stringify(map.vertices));
+        map.create()
+        map.ready = false;
+        map.mapReady = false;
     }
 
     function onDocumentMouseMove( event ) {
@@ -796,8 +857,8 @@
                 y: event.clientY - lastMousePosition.y
             }
 
-            lookAtVector.y += offset.x/2.0;
-            lookAtVector.x += offset.y/2.0;
+            lookAtVector.x += offset.x/2.0;
+            lookAtVector.y += offset.y/2.0;
             lastMousePosition.x = event.clientX;
             lastMousePosition.y = event.clientY;
         }
