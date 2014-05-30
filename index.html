@@ -221,7 +221,6 @@
             this.spriteList.push(new SpriteBatiment(buildingsPositions.blueTowers[i].x, buildingsPositions.blueTowers[i].y, heightHere + 0, 6, 10, textures.blueTower, 0x0088ff))
         }
 
-
         this.spriteList.push(new Sprite(-75, -50, getNearestVertice(-75, -50)-4, 6, 4, textures.blueInhib))
         this.spriteList.push(new Sprite(-51, -51, getNearestVertice(-51, -51)-4, 6, 4, textures.blueInhib))
         this.spriteList.push(new Sprite(-45, -78, getNearestVertice(-45, -78)-4, 6, 4, textures.blueInhib))
@@ -233,7 +232,7 @@
         this.spriteList.push(new Sprite(-67, -72, getNearestVertice(-67, -72)-2, 8, 7, textures.blueNexus))
         this.spriteList.push(new Sprite(69, 73, getNearestVertice(69, 73)-2, 8, 7,  textures.redNexus))
 
-
+        console.log(this.spriteList)
         // JUNGLE MINIMAP
 
         for (var j = 0; j < treePositions.length; ++j) {
@@ -378,6 +377,7 @@
 
 
     SpriteBatiment.prototype = new Sprite()
+
 
 
 
